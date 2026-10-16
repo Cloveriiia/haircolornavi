@@ -20,9 +20,10 @@ namespace AtelierCloveria.CustomHairColorTool
     public static class ToolInfo
     {
         public const string ToolName = "Cloveria_Custom_Hair_Color_Tool";
-        public const string Version = "0.6.7";
+        public const string Version = "0.6.8";
         public const string MenuPath = "Tools/Atelier_Cloveria/" + ToolName;
         public const string TexTransToolUrl = "https://ttt.rs64.net/";
+        public const string ShopUrl = "https://atelier-cloveria.booth.pm/";
         public const string TestedTexTransTool = "TexTransTool 1.0.x"; // asmdef の versionDefines の範囲とそろえる
 
         // 焼き込みツール（別アセンブリ）とは型を参照せず、アセンブリ名とメニューのパスだけで結ぶ
@@ -937,6 +938,9 @@ namespace AtelierCloveria.CustomHairColorTool
         bool _bakedMaterialFound;
         bool _hasThumbnails;
         Texture2D _noneThumbnail;
+        InfoState _infoState;
+        string _infoNeed;
+        string _productName;
         bool _customDiffers;       // 「前のカスタムの続きから」を出すか
         readonly Dictionary<string, Texture2D> _thumbCache = new Dictionary<string, Texture2D>();
 
@@ -1055,7 +1059,7 @@ namespace AtelierCloveria.CustomHairColorTool
 
         void OnSelectionChange() { Refresh(); Repaint(); }
         void OnHierarchyChange() { QueueRefresh(); }
-        void OnProjectChange() { QueueRefresh(); }
+        void OnProjectChange() { HairColoringInfos.Forget(); QueueRefresh(); }
         void OnUndoRedo() { _pickMessage = null; Refresh(); Repaint(); } // 「〜にしました」は Undo で古くなるため消す
 
         // 読むだけ（Hierarchy には書かない）
@@ -1077,8 +1081,20 @@ namespace AtelierCloveria.CustomHairColorTool
             _hasThumbnails = false;
             _noneThumbnail = null;
 
+            _infoState = InfoState.Ok;
+            _infoNeed = null;
+            _productName = null;
+
             _target = CustomHairColorToolCore.Detect(Selection.activeGameObject);
             if (_target == null || !_target.IsValid) return;
+            _infoState = HairColoringInfos.Check(CustomHairColorToolCore.ProductRoot(_target), out var info);
+            if (_infoState != InfoState.Ok)
+            {
+                _infoNeed = info != null ? info.MinToolVersion : null;
+                _target = null;
+                return;
+            }
+            _productName = info != null ? info.ProductName : null;
 
             var customId = _target.Custom.GetInstanceID();
             if (customId != _lastCustomId)

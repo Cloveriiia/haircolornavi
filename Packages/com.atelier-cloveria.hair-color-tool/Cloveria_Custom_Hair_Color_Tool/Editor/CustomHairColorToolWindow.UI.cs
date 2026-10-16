@@ -27,6 +27,9 @@ namespace AtelierCloveria.CustomHairColorTool
         public const string GateStartDefault = "デフォルトの髪をベースにする";
         public const string GateContinue = "前回の続きから編集";
         public const string GateContinueNone = "（まだありません）";
+        public const string InfoMissing = "この髪の色のセットが見つかりません。BOOTH で買った商品の unitypackage を入れてください。";
+        public const string InfoShop = "BOOTH のショップを開く";
+        public static string InfoToolTooOld(string need) => "この商品には道具 " + need + " 以上が必要です。VCC（ALCOM）で Cloveria Custom Hair Color Tool を更新してください。";
     }
 
     // 注意・色・発光調整の注意と見本は IMGUIContainer のまま、ほかは UI Toolkit
@@ -302,14 +305,24 @@ namespace AtelierCloveria.CustomHairColorTool
         bool SyncTarget(bool valid)
         {
             var sig = valid
-                ? "ok|" + AvatarName() + "|" + AutoFoundMessage() + "|" + GetHierarchyPath(_target.Custom.transform)
-                : "nf|" + BuildNotFoundMessage();
+                ? "ok|" + AvatarName() + "|" + _productName + "|" + AutoFoundMessage() + "|" + GetHierarchyPath(_target.Custom.transform)
+                : "nf|" + _infoState + "|" + _infoNeed + "|" + BuildNotFoundMessage();
             if (sig == _sigTarget) return false;
             _sigTarget = sig;
             _detailHost.Clear();
             _notFoundHost.Clear();
             Show(_notFoundHost, !valid);
             Show(_detailHost, valid);
+
+            if (!valid && _infoState != InfoState.Ok)
+            {
+                _headerTarget.text = "対象：見つかりません";
+                var text = new Label(_infoState == InfoState.ToolTooOld ? UiText.InfoToolTooOld(_infoNeed) : UiText.InfoMissing);
+                text.AddToClassList("chct-info");
+                _notFoundHost.Add(text);
+                if (_infoState == InfoState.Missing) _notFoundHost.Add(MakeButton(UiText.InfoShop, null, () => Application.OpenURL(ToolInfo.ShopUrl)));
+                return true;
+            }
 
             if (!valid)
             {
@@ -327,6 +340,7 @@ namespace AtelierCloveria.CustomHairColorTool
             fold.RegisterValueChangedCallback(e => { if (e.target == fold) _showDetail = e.newValue; });
             var auto = AutoFoundMessage();
             if (auto != null) fold.Add(Note(auto));
+            if (!string.IsNullOrEmpty(_productName)) fold.Add(Note("商品：" + _productName));
             fold.Add(Note("Hierarchy の場所：" + GetHierarchyPath(_target.Custom.transform)));
             fold.Add(MakeButton("Hierarchy で「Custom」を選択", "chct-btn--small", () =>
             {
