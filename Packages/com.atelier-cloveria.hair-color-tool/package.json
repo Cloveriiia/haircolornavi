@@ -1,0 +1,19 @@
+{
+  "name": "com.atelier-cloveria.hair-color-tool",
+  "displayName": "Cloveria Custom Hair Color Tool",
+  "version": "0.6.7",
+  "unity": "2022.3",
+  "description": "Atelier Cloveria の髪カラー商品の髪色ツールと焼き込みツール。BOOTH で買った商品と一緒に使います。",
+  "author": {
+    "name": "Atelier Cloveria",
+    "url": "https://atelier-cloveria.booth.pm/"
+  },
+  "vpmDependencies": {
+    "net.rs64.tex-trans-tool": ">=1.0.0 <1.1.0",
+    "nadena.dev.ndmf": ">=1.7.0 <2.0.0"
+  },
+  "legacyFolders": {
+    "Assets\\Atelier_Cloveria\\Tools\\Cloveria_Custom_Hair_Color_Tool": "",
+    "Assets\\Atelier_Cloveria\\Tools\\Cloveria_Custom_Hair_Color_Baked_Tool": ""
+  }
+}

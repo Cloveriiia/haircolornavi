@@ -1,0 +1,22 @@
+{
+    "name": "AtelierCloveria.CustomHairColorTool.Runtime",
+    "rootNamespace": "AtelierCloveria.CustomHairColorTool",
+    "references": [
+        "nadena.dev.ndmf.runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "nadena.dev.ndmf",
+            "expression": "1.7.0",
+            "define": "AC_CHCT_NDMF_PRESENT"
+        }
+    ],
+    "noEngineReferences": false
+}

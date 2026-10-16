@@ -1,0 +1,925 @@
+/* 暗い下地で固定（Unity のテーマによらない）。文字の色は必ず指定（IMGUI の欄は C# の ImguiSkin） */
+
+/* ---- 全体（フォントを替えるときはここに -unity-font-definition）---- */
+.chct-root {
+    flex-grow: 1;
+    background-color: #1F2326;
+    color: #E8EEEC;
+    font-size: 13px;
+}
+
+/* Mochiy Pop One（SIL OFL、Fonts/OFL.txt）のサブセット。読めないときは Unity 標準の字
+   文言を変えたら作り直す（subset_tool_font.py） */
+.chct-root .chct-heading {
+    -unity-font-definition: url("Fonts/MochiyPopOne-Subset.ttf");
+    -unity-font-style: normal;
+}
+
+.chct-scroll {
+    flex-grow: 1;
+}
+
+.chct-body {
+    padding: 8px 8px 16px 8px;
+}
+
+/* ---- 帯 ---- */
+.chct-header {
+    flex-direction: row;
+    align-items: center;
+    padding: 9px 12px;
+    margin-bottom: 4px;
+    border-radius: 12px;
+    background-color: #8FE3CF;
+}
+
+.chct-header__text {
+    flex-grow: 1;
+    flex-shrink: 1;
+}
+
+.chct-header__title {
+    font-size: 14px;
+    color: #1F2326;
+    white-space: normal;
+}
+
+.chct-header__target {
+    margin-top: 1px;
+    font-size: 12px;
+    color: #1F2326;
+    white-space: normal;
+}
+
+.chct-badge {
+    flex-shrink: 0;
+    margin-left: 6px;
+    padding: 2px 9px;
+    border-radius: 10px;
+    background-color: #1F2326;
+    color: #8FE3CF;
+    font-size: 12px;
+    -unity-font-style: bold;
+}
+
+.chct-detail {
+    margin: 0 0 8px 2px;
+}
+
+.chct-root .chct-detail .unity-foldout__text {
+    color: #A9B6B2;
+    font-size: 12px;
+}
+
+.chct-root .chct-detail .unity-foldout__content {
+    margin-left: 14px;
+}
+
+.chct-root .chct-fold .unity-foldout__text {
+    color: #E8EEEC;
+    font-size: 12px;
+}
+
+.chct-root .chct-fold .unity-foldout__content {
+    margin-left: 0;
+}
+
+.chct-root .unity-foldout__checkmark {
+    -unity-background-image-tint-color: #A9B6B2;
+}
+
+/* ---- 枠 ---- */
+.chct-card {
+    margin-bottom: 12px;
+    padding: 12px 10px;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: #3A4448;
+    background-color: #2A3034;
+    color: #E8EEEC;
+}
+
+.chct-card__title {
+    margin-bottom: 6px;
+    font-size: 14px;
+    color: #E8EEEC;
+}
+
+/* ---- 文字 ---- */
+.chct-note {
+    margin: 2px 0 4px 0;
+    font-size: 12px;
+    color: #A9B6B2;
+    white-space: normal;
+}
+
+.chct-strong {
+    font-size: 14px;
+    color: #E8EEEC;
+    white-space: normal;
+}
+
+.chct-group-title {
+    margin-top: 8px;
+    margin-bottom: 2px;
+    font-size: 13px;
+    color: #A9B6B2;
+}
+
+.chct-info {
+    margin: 4px 0 6px 0;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: #4FC1A6;
+    background-color: #23392F;
+    font-size: 12px;
+    color: #E8EEEC;
+    white-space: normal;
+}
+
+.chct-warn {
+    margin: 4px 0 6px 0;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: #E3C46F;
+    background-color: #3F3F37;
+    font-size: 12px;
+    color: #E8EEEC;
+    white-space: normal;
+}
+
+/* ---- ボタン（Unity 標準のボタンの色に引っぱられないよう Label で自分で描く）---- */
+.chct-btn {
+    margin: 4px 0;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: #3A4448;
+    background-color: #23292C;
+    color: #E8EEEC;
+    font-size: 13px;
+    -unity-text-align: middle-center;
+    white-space: normal;
+    cursor: link;
+    transition-property: background-color, border-color;
+    transition-duration: 0.12s;
+}
+
+.chct-btn:hover {
+    border-color: #8FE3CF;
+    background-color: #2F373B;
+}
+
+.chct-btn:active {
+    background-color: #1F2326;
+}
+
+.chct-btn:disabled {
+    opacity: 0.45;
+}
+
+.chct-btn--big {
+    padding: 11px 12px;
+    border-width: 0;
+    background-color: #8FE3CF;
+    color: #1F2326;
+    font-size: 14px;
+}
+
+.chct-btn--big:hover {
+    background-color: #4FC1A6;
+}
+
+.chct-btn--big:active {
+    background-color: #3FA88F;
+}
+
+/* 「色選びを完了する（Esc）」 */
+.chct-btn--soft {
+    padding: 10px 12px;
+    border-color: #4FC1A6;
+    background-color: #23392F;
+    color: #8FE3CF;
+    font-size: 14px;
+}
+
+.chct-btn--small {
+    align-self: flex-start;
+    padding: 5px 10px;
+    font-size: 12px;
+}
+
+.chct-btn--warm {
+    margin-top: 10px;
+    padding: 11px 12px;
+    border-width: 0;
+    background-color: #FF9A5A;
+    color: #3A1A05;
+    font-size: 14px;
+}
+
+.chct-btn--warm:hover {
+    background-color: #FFAB73;
+}
+
+.chct-btn--warm:active {
+    background-color: #F0884A;
+}
+
+.chct-btn--cont {
+    border-width: 2px;
+    border-color: #FFCF6B;
+    background-color: #3A2F1A;
+    color: #FFE2A3;
+}
+
+.chct-btn--cont:hover {
+    border-color: #FFDD94;
+    background-color: #45381F;
+}
+
+.chct-keep {
+    margin: 8px 0 4px 0;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: #8FE3CF;
+    background-color: #1F3A33;
+}
+
+.chct-keep > .unity-label {
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+    color: #D9FFF3;
+    white-space: normal;
+}
+
+.chct-keep > .chct-keep__head {
+    color: #8FE3CF;
+}
+
+.chct-row {
+    flex-direction: row;
+    align-items: center;
+}
+
+.chct-row--buttons > .chct-btn {
+    flex-grow: 1;
+    flex-basis: 0;
+    margin: 4px 3px;
+}
+
+/* ---- 上のタブ ---- */
+.chct-tabs {
+    flex-direction: row;
+    margin-bottom: 12px;
+    padding: 4px;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: #3A4448;
+    background-color: #2A3034;
+}
+
+.chct-tab {
+    flex-grow: 1;
+    flex-basis: 0;
+    margin: 0 2px;
+    padding: 10px 0;
+    border-radius: 9px;
+    font-size: 14px;
+    color: #A9B6B2;
+    -unity-text-align: middle-center;
+    cursor: link;
+    transition-property: background-color, color;
+    transition-duration: 0.12s;
+}
+
+.chct-tab:hover {
+    color: #E8EEEC;
+}
+
+.chct-tab.is-selected {
+    background-color: #8FE3CF;
+    color: #1F2326;
+}
+
+/* ---- チップ ---- */
+.chct-chips {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.chct-chip {
+    margin: 0 6px 6px 0;
+    padding: 6px 11px;
+    border-radius: 14px;
+    border-width: 1px;
+    border-color: #3A4448;
+    background-color: #23292C;
+    color: #E8EEEC;
+    font-size: 12px;
+    -unity-text-align: middle-center;
+    white-space: nowrap;
+    cursor: link;
+    transition-property: background-color, border-color, color;
+    transition-duration: 0.12s;
+}
+
+.chct-chip:hover {
+    border-color: #8FE3CF;
+}
+
+.chct-chip.is-selected {
+    border-color: #8FE3CF;
+    background-color: #8FE3CF;
+    color: #1F2326;
+}
+
+/* ---- タイル（列の数は C# がウィンドウの幅で決める）---- */
+.chct-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin: 0 -4px;
+}
+
+.chct-cell {
+    width: 33.3%;
+    padding: 4px;
+}
+
+.chct-tile {
+    flex-grow: 1;
+    align-items: center;
+    padding: 5px;
+    border-radius: 10px;
+    border-width: 2px;
+    border-color: #3A4448;
+    background-color: #23292C;
+    cursor: link;
+    transition-property: translate, border-color, background-color;
+    transition-duration: 0.12s;
+}
+
+.chct-tile:hover {
+    translate: 0 -2px;
+    border-color: #4FC1A6;
+}
+
+.chct-tile.is-selected {
+    border-color: #8FE3CF;
+    background-color: #23392F;
+}
+
+.chct-tile__label {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #E8EEEC;
+    white-space: normal;
+    -unity-text-align: upper-center;
+}
+
+.chct-tile.is-selected .chct-tile__label {
+    color: #8FE3CF;
+}
+
+.chct-tile__check {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    background-color: #8FE3CF;
+    color: #1F2326;
+    font-size: 12px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    display: none;
+}
+
+.chct-tile.is-selected .chct-tile__check {
+    display: flex;
+}
+
+.chct-thumb {
+    border-radius: 6px;
+}
+
+.chct-swatch {
+    align-self: stretch;
+    height: 22px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: rgba(232, 238, 236, 0.18);
+    overflow: hidden;
+    justify-content: center;
+}
+
+.chct-swatch--strip {
+    align-self: center;
+    height: 5px;
+    margin-top: 3px;
+    border-width: 0;
+    border-radius: 3px;
+}
+
+.chct-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.chct-swatch__text {
+    font-size: 11px;
+    color: #404040;
+    -unity-text-align: middle-center;
+}
+
+/* ---- モード・1色目／2色目 ---- */
+.chct-pills-box {
+    margin-bottom: 4px;
+    padding: 4px;
+    border-radius: 14px;
+    background-color: #23292C;
+}
+
+.chct-pills {
+    flex-direction: row;
+}
+
+.chct-pill {
+    flex-grow: 1;
+    flex-basis: 0;
+    margin: 2px;
+    padding: 7px 4px;
+    border-radius: 11px;
+    color: #A9B6B2;
+    font-size: 13px;
+    -unity-text-align: middle-center;
+    cursor: link;
+    transition-property: background-color, color;
+    transition-duration: 0.12s;
+}
+
+.chct-pill:hover {
+    color: #E8EEEC;
+}
+
+.chct-pill.is-selected {
+    background-color: #8FE3CF;
+    color: #1F2326;
+}
+
+.chct-pill--dot {
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+
+.chct-pill--dot > .unity-label {
+    margin: 0;
+    padding: 0;
+    color: #A9B6B2;
+}
+
+.chct-pill--dot:hover > .unity-label {
+    color: #E8EEEC;
+}
+
+.chct-pill--dot.is-selected > .unity-label {
+    color: #1F2326;
+}
+
+.chct-pill__dot {
+    width: 10px;
+    height: 10px;
+    margin-right: 4px;
+    border-radius: 5px;
+    border-width: 1px;
+    border-color: rgba(232, 238, 236, 0.3);
+    overflow: hidden;
+}
+
+.chct-glow-label {
+    margin: 6px 2px 3px 2px;
+    font-size: 12px;
+    color: #A9B6B2;
+}
+
+.chct-slider-row {
+    margin-bottom: 2px;
+}
+
+.chct-slider {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    min-width: 40px;
+    margin: 0;
+}
+
+.chct-slider-row__value {
+    flex-shrink: 0;
+    width: 40px;
+    font-size: 12px;
+    color: #E8EEEC;
+    -unity-text-align: middle-right;
+}
+
+.chct-colors {
+    flex-direction: row;
+    margin-top: 8px;
+}
+
+.chct-color {
+    flex-grow: 1;
+    flex-basis: 0;
+    flex-direction: row;
+    align-items: center;
+    margin: 0 3px;
+    padding: 7px;
+    border-radius: 10px;
+    border-width: 2px;
+    border-color: #3A4448;
+    background-color: #23292C;
+    cursor: link;
+}
+
+.chct-color:hover {
+    border-color: #4FC1A6;
+}
+
+.chct-color.is-selected {
+    border-color: #8FE3CF;
+    background-color: #23392F;
+}
+
+.chct-dot {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    border-radius: 13px;
+    border-width: 1px;
+    border-color: rgba(232, 238, 236, 0.3);
+    overflow: hidden;
+}
+
+.chct-color__name {
+    margin-left: 8px;
+    font-size: 13px;
+    color: #A9B6B2;
+    white-space: normal;
+}
+
+.chct-color.is-selected .chct-color__name {
+    color: #E8EEEC;
+}
+
+/* ---- 下のタブ ---- */
+.chct-subtabs {
+    flex-direction: row;
+    margin-bottom: 10px;
+    border-bottom-width: 1px;
+    border-color: #3A4448;
+}
+
+.chct-subtab {
+    flex-grow: 1;
+    flex-basis: auto;
+    padding: 9px 2px 7px 2px;
+    border-bottom-width: 3px;
+    border-color: rgba(0, 0, 0, 0);
+    color: #A9B6B2;
+    font-size: 13px;
+    -unity-text-align: middle-center;
+    white-space: nowrap;
+    cursor: link;
+}
+
+.chct-subtab:hover {
+    color: #E8EEEC;
+}
+
+.chct-subtab.is-selected {
+    border-color: #8FE3CF;
+    color: #8FE3CF;
+}
+
+/* ---- グラデ ---- */
+.chct-switch-row {
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: #3A4448;
+    background-color: #23292C;
+    cursor: link;
+}
+
+.chct-switch-row.is-on {
+    border-color: #4FC1A6;
+    background-color: #23392F;
+}
+
+.chct-switch-row__text {
+    flex-shrink: 1;
+    font-size: 13px;
+    color: #E8EEEC;
+    white-space: normal;
+}
+
+.chct-switch {
+    flex-shrink: 0;
+    width: 34px;
+    height: 20px;
+    margin-left: 8px;
+    border-radius: 10px;
+    background-color: #3A4448;
+}
+
+.chct-switch__knob {
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    background-color: #A9B6B2;
+}
+
+.chct-switch-row.is-on .chct-switch {
+    background-color: #8FE3CF;
+}
+
+.chct-switch-row.is-on .chct-switch__knob {
+    left: 17px;
+    background-color: #1F2326;
+}
+
+.chct-switch-row--loud {
+    margin-top: 6px;
+    border-width: 2px;
+    border-color: #FFCF6B;
+    background-color: #33302A;
+}
+
+.chct-switch-row--loud.is-on {
+    border-color: #FFCF6B;
+    background-color: #3A2F1A;
+}
+
+.chct-lab {
+    width: 64px;
+    flex-shrink: 0;
+    font-size: 13px;
+    color: #E8EEEC;
+}
+
+.chct-grad .chct-row .chct-chip {
+    margin-bottom: 0;
+}
+
+/* 「色の数（根元から毛先へ）」は長いため幅を決めない（狭いときはチップが次の行へ） */
+.chct-lab--auto {
+    width: auto;
+    margin-right: 6px;
+}
+
+.chct-row--wrap {
+    flex-wrap: wrap;
+}
+
+.chct-bar {
+    height: 26px;
+    margin-top: 2px;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.chct-bar-ends {
+    justify-content: space-between;
+    margin-top: 8px;
+}
+
+.chct-grad-parts {
+    margin-bottom: 8px;
+}
+
+.chct-marks {
+    height: 32px;
+    margin-top: 4px;
+}
+
+.chct-mark {
+    position: absolute;
+    top: 0;
+    width: 26px;
+    height: 32px;
+    translate: -50% 0;
+    align-items: center;
+    cursor: resize-horizontal;
+}
+
+.chct-mark__knob {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    border-width: 2px;
+    border-color: #1F2326;
+    background-color: #8FE3CF;
+    rotate: 45deg;
+}
+
+.chct-mark:hover .chct-mark__knob,
+.chct-mark.is-dragging .chct-mark__knob {
+    scale: 1.25 1.25;
+}
+
+.chct-mark.is-mixed .chct-mark__knob {
+    background-color: #23292C;
+    border-color: #8FE3CF;
+}
+
+.chct-mark__pct {
+    position: absolute;
+    top: 17px;
+    left: 50%;
+    translate: -50% 0;
+    padding: 0;
+    font-size: 11px;
+    color: #A9B6B2;
+    -unity-text-align: middle-center;
+}
+
+.chct-mark__pct.is-left {
+    left: 0;
+    translate: 0 0;
+}
+
+.chct-mark__pct.is-right {
+    left: auto;
+    right: 0;
+    translate: 0 0;
+}
+
+.chct-stop-swatch {
+    position: absolute;
+    top: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    border-width: 2px;
+    border-color: rgba(232, 238, 236, 0.3);
+    overflow: hidden;
+    cursor: link;
+}
+
+.chct-stop-swatch--root {
+    left: 0;
+}
+
+.chct-stop-swatch--tip {
+    right: 0;
+}
+
+.chct-stop-swatch--middle {
+    translate: -50% 0;
+}
+
+.chct-stop-swatch:hover {
+    border-color: #4FC1A6;
+}
+
+.chct-stop-swatch.is-selected {
+    border-width: 2px;
+    border-color: #8FE3CF;
+}
+
+.chct-sep {
+    height: 1px;
+    margin: 8px 0;
+    background-color: #3A4448;
+}
+
+.chct-head-row {
+    justify-content: space-between;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+/* ---- メッシュ調整 ---- */
+.chct-actions {
+    align-items: stretch;
+    margin-bottom: 4px;
+}
+
+.chct-action {
+    flex-grow: 1;
+    flex-basis: 0;
+    align-items: center;
+    margin: 0 3px;
+    padding: 8px 4px;
+    border-radius: 10px;
+    border-width: 2px;
+    border-color: #3A4448;
+    background-color: #23292C;
+    cursor: link;
+}
+
+.chct-action:hover {
+    border-color: #4FC1A6;
+}
+
+.chct-action.is-selected {
+    border-color: #8FE3CF;
+    background-color: #23392F;
+}
+
+.chct-action__dots {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.chct-action__dot {
+    width: 16px;
+    height: 16px;
+    margin: 0 2px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: rgba(232, 238, 236, 0.3);
+    overflow: hidden;
+}
+
+.chct-action__arrow {
+    font-size: 12px;
+    color: #E8EEEC;
+}
+
+.chct-action__name {
+    font-size: 13px;
+    color: #A9B6B2;
+    white-space: normal;
+    -unity-text-align: middle-center;
+}
+
+.chct-action.is-selected .chct-action__name {
+    color: #E8EEEC;
+}
+
+.chct-counts {
+    align-items: stretch;
+    margin: 4px 0;
+}
+
+.chct-count {
+    flex-grow: 1;
+    flex-basis: 0;
+    align-items: center;
+    margin: 0 3px;
+    padding: 8px 2px;
+    border-radius: 8px;
+    background-color: #23292C;
+}
+
+.chct-count__num {
+    font-size: 18px;
+    color: #E8EEEC;
+}
+
+.chct-count__name {
+    font-size: 12px;
+    color: #A9B6B2;
+    white-space: normal;
+    -unity-text-align: middle-center;
+}
+
+/* ---- IMGUI の欄の下地（明るいテーマでも灰色の箱にしない）---- */
+.chct-imgui-panel {
+    margin-bottom: 12px;
+    padding: 10px 8px;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: #3A4448;
+    background-color: #2A3034;
+}
+
+/* 「色」のカードの中は枠を消して下地だけ */
+.chct-grad .chct-imgui-panel {
+    margin: 4px -4px 4px -4px;
+    padding: 4px;
+    border-width: 0;
+}
+
+/* ---- なし（丸の中身は C# で塗る）---- */
+.chct-dot--clear {
+    border-width: 2px;
+    border-color: rgba(232, 238, 236, 0.85);
+}

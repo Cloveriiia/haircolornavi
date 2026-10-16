@@ -1,0 +1,36 @@
+{
+    "name": "AtelierCloveria.CustomHairColorBakedTool.Editor",
+    "rootNamespace": "AtelierCloveria.CustomHairColorBakedTool",
+    "references": [
+        "net.rs64.tex-trans-tool.runtime",
+        "nadena.dev.ndmf",
+        "nadena.dev.ndmf.runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "net.rs64.tex-trans-tool",
+            "expression": "[1.0.0,1.1.0)",
+            "define": "AC_CHBT_TTT_PRESENT"
+        },
+        {
+            "name": "net.rs64.tex-trans-tool",
+            "expression": "1.0.0",
+            "define": "AC_CHBT_TTT_INSTALLED"
+        },
+        {
+            "name": "nadena.dev.ndmf",
+            "expression": "[1.5.0,2.0.0)",
+            "define": "AC_CHBT_NDMF_PRESENT"
+        }
+    ],
+    "noEngineReferences": false
+}
