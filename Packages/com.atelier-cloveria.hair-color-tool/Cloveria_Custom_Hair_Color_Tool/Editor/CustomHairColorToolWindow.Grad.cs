@@ -13,86 +13,21 @@ using UnityEngine;
 
 namespace AtelierCloveria.CustomHairColorTool
 {
-    // メッシュ・ツートンの色ごとのグラデ。Prefab：Custom/_Grad/<モード>/<色の Decal の名前>/ の下にパーツごとの Decal
-    // グラデにする＝単色の Decal をオフにして包みをオン
-    public sealed class ColorGradTarget
-    {
-        public GameObject Root;
-        public GameObject Node;
-        public readonly GameObject[] Wrappers = new GameObject[2];
-        public readonly List<SingleGradationDecal>[] Decals = { new List<SingleGradationDecal>(), new List<SingleGradationDecal>() };
-        // パーツ名→おすすめの色が変わる位置（無ければ均等）
-        public Dictionary<string, GradientShape> Suggested = new Dictionary<string, GradientShape>(System.StringComparer.OrdinalIgnoreCase);
-    }
-
-    public static partial class CustomHairColorToolCore
-    {
-        public const string GradNodeName = "_Grad";
-
-        // 古い構造の商品では null（色ごとのグラデを出さない）
-        static ColorGradTarget DetectColorGrad(Transform custom, ModeTarget mt)
-        {
-            if (mt.Decals.Count < 2) return null;
-            var root = FindChild(custom, GradNodeName);
-            if (root == null) return null;
-            var node = FindChild(root, mt.Node.name);
-            if (node == null) return null;
-            var t = new ColorGradTarget { Root = root.gameObject, Node = node.gameObject };
-            for (var c = 0; c < 2; c++)
-            {
-                var lead = mt.Decals[c];
-                // 単色の Decal がモードのノードに付いている商品は対象外（オフにするとモードごと消えるため）
-                if (lead == null || lead.gameObject == mt.Node) return null;
-                var w = FindChild(node, lead.name);
-                if (w == null || w.GetComponent<SingleGradationDecal>() != null) return null;
-                var decals = CollectDecals(w);
-                if (decals.Count == 0) return null;
-                t.Wrappers[c] = w.gameObject;
-                t.Decals[c].AddRange(decals);
-            }
-            t.Suggested = ReadSuggestedSplits(custom);
-            return t;
-        }
-
-        // 商品の色はパーツごとに位置を変えてある（同じ割合だと短いパーツがすぐ毛先の色になり、つなぎ目で段になるため）
-        // 位置はどの色も同じため先頭の色から読む
-        static Dictionary<string, GradientShape> ReadSuggestedSplits(Transform custom)
-        {
-            var map = new Dictionary<string, GradientShape>(System.StringComparer.OrdinalIgnoreCase);
-            var product = custom.parent;
-            if (product == null) return map;
-            var group = Modes.Get(HairMode.Gradation).NodeNames.Select(n => FindChild(product, n)).FirstOrDefault(n => n != null);
-            if (group == null) return map;
-            for (var i = 0; i < group.childCount; i++)
-            {
-                var decals = CollectDecals(group.GetChild(i));
-                if (decals.Count == 0) continue;
-                foreach (var d in decals) map[d.name] = ReadGradient(d);
-                break;
-            }
-            return map;
-        }
-
-        // 包みのオン・オフで見る（ウィンドウには覚えない）
-        public static bool IsColorGradOn(ColorGradTarget g, int color)
-            => g != null && color >= 0 && color < 2 && g.Wrappers[color] != null && g.Wrappers[color].activeSelf;
-    }
-
     public sealed partial class CustomHairColorToolWindow
     {
-        ColorGradTarget CurrentGrad => _target != null && _target.IsValid && _target.Has(_mode) ? _target.ModeTargets[_mode].Grad : null;
+        PerColorGradientParts CurrentGrad => _target != null && _target.IsValid && _target.Has(_mode) ? _target.ModeParts[_mode].Grad : null;
 
-        bool ColorGradOn => !IsGradientMode && CustomHairColorToolCore.IsColorGradOn(CurrentGrad, _partIndex);
+        bool ColorGradOn => !IsGradientMode && HairColorCore.IsPerColorGradientOn(CurrentGrad, _partIndex);
 
-        bool IsColorGradOnFor(HairMode mode, int color)
-            => _target != null && _target.Has(mode) && CustomHairColorToolCore.IsColorGradOn(_target.ModeTargets[mode].Grad, color);
+        bool IsColorGradOnFor(ColoringMode mode, int color)
+            => _target != null && _target.Has(mode) && HairColorCore.IsPerColorGradientOn(_target.ModeParts[mode].Grad, color);
 
         static string StopLabel(int stop) => stop == 0 ? "根元" : stop == 1 ? "真ん中" : "毛先";
 
-        void SyncColorGrad(HairMode mode, int color)
+        void SyncColorGrad(ColoringMode mode, int color)
         {
-            var g = _target.ModeTargets[mode].Grad;
-            if (!CustomHairColorToolCore.IsColorGradOn(g, color)) return;
+            var g = _target.ModeParts[mode].Grad;
+            if (!HairColorCore.IsPerColorGradientOn(g, color)) return;
             SyncGradientFrom(g.Decals[color], mode, color);
             var root = GradStop(mode, color, 0);
             var st = State(mode, color);
@@ -114,12 +49,12 @@ namespace AtelierCloveria.CustomHairColorTool
         void RefreshPartShapes()
         {
             _partShapes.Clear();
-            foreach (var kv in _target.ModeTargets)
+            foreach (var kv in _target.ModeParts)
             {
                 var mt = kv.Value;
-                if (Modes.Get(kv.Key).IsGradient) foreach (var d in mt.Decals) ReadPartShape(d);
+                if (ColoringModes.Get(kv.Key).IsGradient) foreach (var d in mt.Decals) ReadPartShape(d);
                 if (mt.Grad == null) continue;
-                for (var c = 0; c < 2; c++) foreach (var d in mt.Grad.Decals[c]) ReadPartShape(d);
+                foreach (var list in mt.Grad.Decals) foreach (var d in list) ReadPartShape(d);
             }
             var key = _target.Custom.GetInstanceID() + ":" + (int)_mode + ":" + GradColor;
             if (key != _gradPartKey) { _gradPartKey = key; _gradPartIndex = -1; }
@@ -128,15 +63,15 @@ namespace AtelierCloveria.CustomHairColorTool
 
         void ReadPartShape(SingleGradationDecal d)
         {
-            if (d != null) _partShapes[d] = CustomHairColorToolCore.ReadGradient(d);
+            if (d != null) _partShapes[d] = HairColorCore.GetDecalGradient(d);
         }
 
-        List<SingleGradationDecal> GradDecalsOf(HairMode mode, int color)
+        List<SingleGradationDecal> GradDecalsOf(ColoringMode mode, int color)
         {
             if (_target == null || !_target.IsValid || !_target.Has(mode)) return new List<SingleGradationDecal>();
-            var mt = _target.ModeTargets[mode];
-            if (Modes.Get(mode).IsGradient) return mt.Decals;
-            return mt.Grad != null && color >= 0 && color < 2 ? mt.Grad.Decals[color] : new List<SingleGradationDecal>();
+            var mt = _target.ModeParts[mode];
+            if (ColoringModes.Get(mode).IsGradient) return mt.Decals;
+            return mt.Grad != null && color >= 0 && color < mt.Grad.ColorCount ? mt.Grad.Decals[color] : new List<SingleGradationDecal>();
         }
 
         List<SingleGradationDecal> GradDecals => GradDecalsOf(_mode, GradColor);
@@ -236,7 +171,7 @@ namespace AtelierCloveria.CustomHairColorTool
         void WriteSplits(float split, float split1, float split2)
         {
             BeginDragUndo();
-            Undo.RecordObject(this, CustomHairColorToolCore.UndoLabel);
+            Undo.RecordObject(this, HairColorCore.UndoLabel);
             var g = Grad(_mode, GradColor);
             var decals = GradDecals;
             var sel = SelectedGradDecal;
@@ -261,13 +196,13 @@ namespace AtelierCloveria.CustomHairColorTool
 
         static readonly GradientShape EvenSplits = new GradientShape(); // 共有のため書き換えない
 
-        GradientShape DefaultSplits(HairMode mode, int color, SingleGradationDecal d)
+        GradientShape DefaultSplits(ColoringMode mode, int color, SingleGradationDecal d)
         {
-            var g = Modes.Get(mode).IsGradient || !_target.Has(mode) ? null : _target.ModeTargets[mode].Grad;
+            var g = ColoringModes.Get(mode).IsGradient || !_target.Has(mode) ? null : _target.ModeParts[mode].Grad;
             return g != null && d != null && g.Suggested.TryGetValue(d.name, out var s) ? s : EvenSplits;
         }
 
-        void SetDefaultSplits(HairMode mode, int color, GradState g)
+        void SetDefaultSplits(ColoringMode mode, int color, GradState g)
         {
             var decals = GradDecalsOf(mode, color);
             foreach (var d in decals)
@@ -289,8 +224,8 @@ namespace AtelierCloveria.CustomHairColorTool
         {
             if (_target == null || !_target.IsValid || !_customOn || !GradEditing) return;
             Undo.IncrementCurrentGroup();
-            Undo.SetCurrentGroupName(CustomHairColorToolCore.UndoLabel);
-            Undo.RecordObject(this, CustomHairColorToolCore.UndoLabel);
+            Undo.SetCurrentGroupName(HairColorCore.UndoLabel);
+            Undo.RecordObject(this, HairColorCore.UndoLabel);
             SetDefaultSplits(_mode, GradColor, Grad(_mode, GradColor));
             PushGradient();
             Refresh();
@@ -317,8 +252,8 @@ namespace AtelierCloveria.CustomHairColorTool
             var lead = CurrentDecal;
             if (g == null || lead == null) return;
             Undo.IncrementCurrentGroup();
-            Undo.SetCurrentGroupName(CustomHairColorToolCore.UndoLabel);
-            Undo.RecordObject(this, CustomHairColorToolCore.UndoLabel);
+            Undo.SetCurrentGroupName(HairColorCore.UndoLabel);
+            Undo.RecordObject(this, HairColorCore.UndoLabel);
             var c = _partIndex;
             var st = State(_mode, c);
             if (on)
@@ -338,8 +273,8 @@ namespace AtelierCloveria.CustomHairColorTool
                 }
                 _stopIndex = 0;
                 SetColorGradNodes(_mode, c, true);
-                foreach (var d in g.Decals[c]) CustomHairColorToolCore.ApplyBlendKey(d, st.BlendKey);
-                CustomHairColorToolCore.ApplyGradientPerPart(g.Decals[c], ShapeOf(_mode, c), d => PartShape(d, gs));
+                foreach (var d in g.Decals[c]) HairColorCore.SetDecalBlendMode(d, st.BlendKey);
+                HairColorCore.SetDecalsGradientKeepSplits(g.Decals[c], ShapeOf(_mode, c), d => PartShape(d, gs));
             }
             else
             {
@@ -353,8 +288,8 @@ namespace AtelierCloveria.CustomHairColorTool
                 SetColorGradNodes(_mode, c, false);
                 foreach (var d in WithFollowers(lead))
                 {
-                    CustomHairColorToolCore.ApplyColor(d, st.Color, st.Clear);
-                    CustomHairColorToolCore.ApplyBlendKey(d, st.BlendKey);
+                    HairColorCore.SetDecalColor(d, st.Color, st.Clear);
+                    HairColorCore.SetDecalBlendMode(d, st.BlendKey);
                 }
             }
             SyncGlowColorToHair(_mode, c);
@@ -362,14 +297,14 @@ namespace AtelierCloveria.CustomHairColorTool
             Refresh();
         }
 
-        void SetColorGradNodes(HairMode mode, int color, bool on)
+        void SetColorGradNodes(ColoringMode mode, int color, bool on)
         {
-            var g = _target.ModeTargets[mode].Grad;
+            var g = _target.ModeParts[mode].Grad;
             var lead = _target.Decal(mode, color);
             if (g == null || lead == null) return;
-            CustomHairColorToolCore.SetNodeActive(lead.gameObject, !on);
-            CustomHairColorToolCore.SetNodeActive(g.Wrappers[color], on);
-            CustomHairColorToolCore.SetMode(_target, mode); // _Grad の親のオン・オフもそろえるため
+            HairColorCore.SetActiveWithUndo(lead.gameObject, !on);
+            HairColorCore.SetActiveWithUndo(g.Wrappers[color], on);
+            HairColorCore.SetColoringMode(_target, mode); // _Grad の親のオン・オフもそろえるため
         }
     }
 }

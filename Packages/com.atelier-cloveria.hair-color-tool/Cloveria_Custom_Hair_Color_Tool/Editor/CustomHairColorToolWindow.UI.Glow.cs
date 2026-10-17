@@ -167,12 +167,12 @@ namespace AtelierCloveria.CustomHairColorTool
         void SyncGlowPanel()
         {
             var ready = CurrentGlow != null && GlowReady;
-            var lit = _glowSide >= 0;
+            var lit = _glowingColorIndex >= 0;
             Show(_glowWarnPanel, !ready);
             Show(_glowPreviewPanel, ready && lit);
             Show(_glowControls, ready);
             if (!ready) return;
-            for (var k = -1; k < 2; k++) _glowSideEls[k + 1].EnableInClassList("is-selected", _glowSide == k);
+            for (var k = -1; k < 2; k++) _glowSideEls[k + 1].EnableInClassList("is-selected", _glowingColorIndex == k);
             for (var k = 0; k < 2; k++)
             {
                 _glowSideDots[k].Q<PaintBox>().MarkDirtyRepaint();
@@ -181,11 +181,11 @@ namespace AtelierCloveria.CustomHairColorTool
             _glowLit.SetEnabled(lit);
 
             var follow = GlowFollowHair(_mode);
-            var sideClear = lit && State(_mode, _glowSide).Clear;
+            var sideClear = lit && State(_mode, _glowingColorIndex).Clear;
             _glowColorField.SetValueWithoutNotify(_glowColor);
             _glowColorField.SetEnabled(!follow || sideClear);
             _glowFollowRow.EnableInClassList("is-on", follow);
-            _glowFollowNote.text = follow && sideClear ? PartLabel(_mode, _glowSide) + "は「" + NoneSwatch.Label + "」（デフォルトの髪のまま）なので、光の色は自分で決めます。「色」で色を選ぶと、また髪の色に合わせます。" : "";
+            _glowFollowNote.text = follow && sideClear ? PartLabel(_mode, _glowingColorIndex) + "は「" + NoneSwatch.Label + "」（デフォルトの髪のまま）なので、光の色は自分で決めます。「色」で色を選ぶと、また髪の色に合わせます。" : "";
             Show(_glowFollowNote, follow && sideClear);
 
             _glowStrengthSlider.SetValueWithoutNotify(_glowStrength);
@@ -205,28 +205,28 @@ namespace AtelierCloveria.CustomHairColorTool
 
         void OnGlowSideClicked(int side)
         {
-            if (_target == null || !_target.IsValid || !_customOn || _glowSide == side) return;
-            SetGlowSide(side);
+            if (_target == null || !_target.IsValid || !_customOn || _glowingColorIndex == side) return;
+            SetGlowingColorIndex(side);
             SyncUI(false);
         }
 
         void OnGlowFollowClicked()
         {
-            if (_target == null || !_target.IsValid || !_customOn || _glowSide < 0) return;
+            if (_target == null || !_target.IsValid || !_customOn || _glowingColorIndex < 0) return;
             SetGlowFollowHair(!GlowFollowHair(_mode));
             SyncUI(false);
         }
 
         void OnGlowFlowClicked(int dir)
         {
-            if (_target == null || !_target.IsValid || !_customOn || _glowSide < 0) return;
+            if (_target == null || !_target.IsValid || !_customOn || _glowingColorIndex < 0) return;
             SetGlowFlow(dir);
             SyncUI(false);
         }
 
         void OnFlowSmoothClicked()
         {
-            if (!_glowFlowOn || _glowSide < 0) return;
+            if (!_glowFlowOn || _glowingColorIndex < 0) return;
             _flowSmooth = !_flowSmooth;
             SceneView.RepaintAll();
             SyncUI(false);

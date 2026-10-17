@@ -14,7 +14,7 @@ namespace AtelierCloveria.CustomHairColorTool
 {
     // 開発用の HairIslandPicker から必要な所だけ写したもの（_Dev は出荷しないため参照しない）
 
-    public sealed class PickIsland
+    public sealed class StrandIsland
     {
         public Renderer Renderer;
         public int SubMesh;
@@ -39,21 +39,21 @@ namespace AtelierCloveria.CustomHairColorTool
         public bool IsCut => Cut.Any(p => p != null && p.gameObject.activeSelf);
     }
 
-    public static class HairIslandPick
+    public static class StrandPicker
     {
         // 原点から遠い所は float の丸めでずれるため、距離の内側でなく「いちばん近いもの」で選ぶ（上限 1 mm）
         public const float MatchDistance = 0.001f;
         const float TieDistance = 0.00002f; // 同じ面に重なる毛束は一緒に結ぶ（0.02 mm）
 
         // 目印は重心＋法線×off から長さ 2×off で刺してあるため、線分の真ん中が重心になる（長さは TTT と同じ計算）
-        public static Vector3 Midpoint(PinIslandSelector pin)
+        public static Vector3 PinMidpoint(PinIslandSelector pin)
         {
             var t = pin.transform;
             return t.position + t.forward * (t.lossyScale.z * pin.IslandSelectorRange * 0.5f);
         }
 
         // TTT の OR と同じく直下の子だけを見て、子が OR ならその中も見る（入れ子の Part_<パーツ> も拾う）
-        public static void CollectPins(Transform or, List<PinIslandSelector> result)
+        public static void CollectStrandPins(Transform or, List<PinIslandSelector> result)
         {
             if (or == null) return;
             for (var i = 0; i < or.childCount; i++)
@@ -61,17 +61,17 @@ namespace AtelierCloveria.CustomHairColorTool
                 var c = or.GetChild(i);
                 var pin = c.GetComponent<PinIslandSelector>();
                 if (pin != null) { result.Add(pin); continue; }
-                if (c.GetComponent<IslandSelectorOR>() != null) CollectPins(c, result);
+                if (c.GetComponent<IslandSelectorOR>() != null) CollectStrandPins(c, result);
             }
         }
 
         // 「+」付きはシェイプキーで動いた形の上に刺した追加の目印（例：Hair_Bangs_007+Ahoge_SideON）
         // 刺した所に毛束が無い形もあるため、位置でなく「+」の前の名前で元の組に入れる
-        public static bool IsExtra(PinIslandSelector pin) => pin != null && pin.gameObject.name.IndexOf('+') >= 0;
+        public static bool IsExtraPin(PinIslandSelector pin) => pin != null && pin.gameObject.name.IndexOf('+') >= 0;
 
         static string BaseName(PinIslandSelector pin) => pin.gameObject.name.Substring(0, pin.gameObject.name.IndexOf('+'));
 
-        public static List<PinPair> PairPins(List<PinIslandSelector> a, List<PinIslandSelector> b, List<PinIslandSelector> cut)
+        public static List<PinPair> PairStrandPins(List<PinIslandSelector> a, List<PinIslandSelector> b, List<PinIslandSelector> cut)
         {
             var pairs = new List<PinPair>();
             var cell = new Dictionary<Vector3Int, List<int>>();
@@ -100,7 +100,7 @@ namespace AtelierCloveria.CustomHairColorTool
             void Add(PinIslandSelector pin, int side)
             {
                 if (pin == null) return;
-                var p = Midpoint(pin);
+                var p = PinMidpoint(pin);
                 var pair = Find(p);
                 if (pair == null)
                 {
@@ -115,7 +115,7 @@ namespace AtelierCloveria.CustomHairColorTool
 
             var sides = new[] { a, b, cut ?? new List<PinIslandSelector>() };
             for (var s = 0; s < sides.Length; s++)
-                foreach (var p in sides[s]) if (!IsExtra(p)) Add(p, s);
+                foreach (var p in sides[s]) if (!IsExtraPin(p)) Add(p, s);
 
             var byName = new Dictionary<string, PinPair>();
             foreach (var pair in pairs) if (!byName.ContainsKey(pair.Name)) byName[pair.Name] = pair;
@@ -123,33 +123,33 @@ namespace AtelierCloveria.CustomHairColorTool
             {
                 foreach (var p in sides[s])
                 {
-                    if (!IsExtra(p)) continue;
+                    if (!IsExtraPin(p)) continue;
                     if (!byName.TryGetValue(BaseName(p), out var pair)) { Add(p, s); continue; }
                     (s == 0 ? pair.A : s == 1 ? pair.B : pair.Cut).Add(p);
-                    pair.Alt.Add(Midpoint(p));
+                    pair.Alt.Add(PinMidpoint(p));
                 }
             }
             return pairs;
         }
 
         // アバターを動かした・Undo で戻したときのため、毛束を作り直すときに一緒に呼ぶ
-        public static void RefreshPoints(List<PinPair> pairs)
+        public static void RefreshPairPoints(List<PinPair> pairs)
         {
             if (pairs == null) return;
             foreach (var p in pairs)
             {
                 var all = p.A.Concat(p.B).Concat(p.Cut).Where(x => x != null).ToList();
-                var pin = all.FirstOrDefault(x => !IsExtra(x)) ?? all.FirstOrDefault();
-                if (pin != null) p.Point = Midpoint(pin);
+                var pin = all.FirstOrDefault(x => !IsExtraPin(x)) ?? all.FirstOrDefault();
+                if (pin != null) p.Point = PinMidpoint(pin);
                 p.Alt.Clear();
-                foreach (var x in all) if (IsExtra(x) && x != pin) p.Alt.Add(Midpoint(x));
+                foreach (var x in all) if (IsExtraPin(x) && x != pin) p.Alt.Add(PinMidpoint(x));
             }
         }
 
         // materials が null なら全サブメッシュ
-        public static List<PickIsland> BuildIslands(IEnumerable<Renderer> renderers, ICollection<Material> materials)
+        public static List<StrandIsland> BuildStrandIslands(IEnumerable<Renderer> renderers, ICollection<Material> materials)
         {
-            var result = new List<PickIsland>();
+            var result = new List<StrandIsland>();
             foreach (var r in renderers.Distinct())
             {
                 if (r == null || !(r is SkinnedMeshRenderer || r is MeshRenderer)) continue;
@@ -165,7 +165,7 @@ namespace AtelierCloveria.CustomHairColorTool
                     var tris = mesh.GetTriangles(sub);
                     foreach (var g in SplitIslands(mesh.vertexCount, uvs, tris))
                     {
-                        var isl = new PickIsland { Renderer = r, SubMesh = sub, TriWorld = new Vector3[g.Count], TriUv = new Vector2[g.Count] };
+                        var isl = new StrandIsland { Renderer = r, SubMesh = sub, TriWorld = new Vector3[g.Count], TriUv = new Vector2[g.Count] };
                         for (var i = 0; i < g.Count; i++)
                         {
                             isl.TriWorld[i] = world[g[i]];
@@ -181,7 +181,7 @@ namespace AtelierCloveria.CustomHairColorTool
             return result;
         }
 
-        public static void MatchPairs(List<PickIsland> islands, List<PinPair> pairs)
+        public static void MatchIslandsToPairs(List<StrandIsland> islands, List<PinPair> pairs)
         {
             foreach (var isl in islands) isl.Pairs.Clear();
             if (pairs == null) return;
@@ -196,7 +196,7 @@ namespace AtelierCloveria.CustomHairColorTool
             }
         }
 
-        static float Nearest(List<PickIsland> islands, Vector3 p, float[] dist)
+        static float Nearest(List<StrandIsland> islands, Vector3 p, float[] dist)
         {
             var best = MatchDistance;
             for (var ii = 0; ii < islands.Count; ii++)
@@ -212,7 +212,7 @@ namespace AtelierCloveria.CustomHairColorTool
             return best;
         }
 
-        public static int Raycast(List<PickIsland> islands, Ray ray, out float distance)
+        public static int RaycastStrand(List<StrandIsland> islands, Ray ray, out float distance)
         {
             var best = -1;
             distance = float.MaxValue;
@@ -321,7 +321,7 @@ namespace AtelierCloveria.CustomHairColorTool
         // ---- Scene に毛束を描く ----
         static Material s_mat;
 
-        public static void DrawIsland(PickIsland isl, Color c, Vector3 cam)
+        public static void DrawStrandOutline(StrandIsland isl, Color c, Vector3 cam)
         {
             if (isl == null) return;
             if (s_mat == null)

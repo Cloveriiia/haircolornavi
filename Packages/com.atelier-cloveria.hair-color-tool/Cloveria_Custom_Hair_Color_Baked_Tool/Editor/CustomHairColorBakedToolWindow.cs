@@ -9,6 +9,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using AtelierCloveria.CustomHairColorTool;
 
 namespace AtelierCloveria.CustomHairColorBakedTool
 {
@@ -96,7 +97,7 @@ namespace AtelierCloveria.CustomHairColorBakedTool
             var sel = Selection.activeGameObject;
             if (sel != null)
             {
-                var a = CustomHairColorBakedTool.FindAvatarRoot(sel);
+                var a = AvatarLookup.FindAvatarRoot(sel);
                 if (CustomHairColorBakedTool.FindProducts(a).Count > 0) { _avatar = a; _foundInSelection = true; }
             }
             if (_avatar == null)
@@ -109,7 +110,7 @@ namespace AtelierCloveria.CustomHairColorBakedTool
                 }
                 _avatar = roots
                     .Where(r => r.name.IndexOf("(" + BakedToolInfo.ToolName + " temp)", StringComparison.Ordinal) < 0)
-                    .OrderByDescending(CustomHairColorBakedTool.IsAvatarRoot)
+                    .OrderByDescending(AvatarLookup.IsAvatarRoot)
                     .FirstOrDefault(r => CustomHairColorBakedTool.FindProducts(r).Count > 0);
             }
 
@@ -121,7 +122,7 @@ namespace AtelierCloveria.CustomHairColorBakedTool
             _preview = new List<ExportTarget>();
             _previewWarnings = new List<string>();
             if (_avatar != null && _product != null && _product.ActiveDecals > 0)
-                _preview = CustomHairColorBakedTool.Detect(_avatar, _product.Root, _previewWarnings);
+                _preview = CustomHairColorBakedTool.FindExportTargets(_avatar, _product.Root, _previewWarnings);
 
             var avatarId = _avatar != null ? _avatar.GetInstanceID() : 0;
             if (avatarId != _resultAvatarId)
@@ -137,7 +138,7 @@ namespace AtelierCloveria.CustomHairColorBakedTool
 
         void DrawNdmfMissingIMGUI()
         {
-            GUILayout.Label("NDMF が見つかりません。TexTransTool を入れると一緒に入ります。\n" + BakedToolInfo.NdmfUrl, ImguiSkin.Warn);
+            GUILayout.Label("NDMF が見つかりません。VCC（ALCOM）で NDMF を入れてください。\n" + BakedToolInfo.NdmfUrl, ImguiSkin.Warn);
             if (GUILayout.Button("NDMF のページを開く", ImguiSkin.Button, GUILayout.Height(26))) Application.OpenURL(BakedToolInfo.NdmfUrl);
         }
 
@@ -388,7 +389,7 @@ namespace AtelierCloveria.CustomHairColorBakedTool
             _exportMessages.Clear();
 
             var warnings = new List<string>();
-            var targets = CustomHairColorBakedTool.Detect(_avatar, _product.Root, warnings);
+            var targets = CustomHairColorBakedTool.FindExportTargets(_avatar, _product.Root, warnings);
             if (targets.Count == 0)
             {
                 var why = warnings.Count > 0 ? string.Join("\n", warnings) : "焼き込む先（髪のメッシュ）が見つかりませんでした。";

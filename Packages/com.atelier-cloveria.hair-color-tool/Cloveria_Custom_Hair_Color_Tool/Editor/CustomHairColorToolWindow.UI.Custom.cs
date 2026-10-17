@@ -19,7 +19,7 @@ namespace AtelierCloveria.CustomHairColorTool
         VisualElement _gateCard, _customContent;
         Label _gateStart, _gateDefault, _gateContinue;
         VisualElement _modesHost, _partsHost;
-        readonly List<KeyValuePair<HairMode, VisualElement>> _modeEls = new List<KeyValuePair<HairMode, VisualElement>>();
+        readonly List<KeyValuePair<ColoringMode, VisualElement>> _modeEls = new List<KeyValuePair<ColoringMode, VisualElement>>();
         readonly List<KeyValuePair<int, VisualElement>> _partEls = new List<KeyValuePair<int, VisualElement>>();
         readonly List<VisualElement> _partDots = new List<VisualElement>();
         VisualElement _subTabsRow, _colorCard, _panelColor, _panelGlow, _strandPanel;
@@ -47,7 +47,7 @@ namespace AtelierCloveria.CustomHairColorTool
             _sigGate = _sigModes = _sigModeState = _sigParts = _sigPartState = _sigStrips = _sigSubTabs = _sigSubState = _sigGradParts = _sigGradBar = null;
         }
 
-        static string StrandTabLabel(HairMode mode) => mode == HairMode.Default || Modes.Get(mode).IsGradient ? UiText.StrandTabPaint : Modes.Get(mode).Label + UiText.StrandSuffix;
+        static string StrandTabLabel(ColoringMode mode) => mode == ColoringMode.Default || ColoringModes.Get(mode).IsGradient ? UiText.StrandTabPaint : ColoringModes.Get(mode).Label + UiText.StrandSuffix;
 
         VisualElement BuildCustomTab()
         {
@@ -126,7 +126,7 @@ namespace AtelierCloveria.CustomHairColorTool
 
         // ---- 最初の画面 ----
         // デフォルトの髪・2つ以上オンは null
-        PresetTile GateTile()
+        PresetColor GateTile()
         {
             var selected = _tiles.Where(t => t.Selected).ToList();
             return selected.Count == 1 ? selected[0] : null;
@@ -135,7 +135,7 @@ namespace AtelierCloveria.CustomHairColorTool
         bool SyncGate()
         {
             var tile = GateTile();
-            var copyable = tile != null && CustomHairColorToolCore.ModeOfGroup(_target, tile.GroupName).HasValue;
+            var copyable = tile != null && HairColorCore.ColoringModeOfPresetGroup(_target, tile.GroupName).HasValue;
             var baseText = copyable ? GroupShortLabel(tile.GroupName) + "「" + tile.Label + "」" + UiText.GateStartFrom : "";
             var sig = baseText + "|" + _customDiffers;
             if (sig == _sigGate) return false;
@@ -193,7 +193,7 @@ namespace AtelierCloveria.CustomHairColorTool
             return changed;
         }
 
-        void BuildModes(List<HairMode> modes)
+        void BuildModes(List<ColoringMode> modes)
         {
             _modesHost.Clear();
             _modeEls.Clear();
@@ -208,19 +208,19 @@ namespace AtelierCloveria.CustomHairColorTool
                 for (var k = start; k < Mathf.Min(modes.Count, start + perRow); k++)
                 {
                     var m = modes[k];
-                    var pill = new Label(Modes.Get(m).Label);
+                    var pill = new Label(ColoringModes.Get(m).Label);
                     pill.AddToClassList("chct-pill");
                     pill.AddToClassList(HeadingClass);
                     pill.AddManipulator(new Clickable(() => OnModeClicked(m)));
                     row.Add(pill);
-                    _modeEls.Add(new KeyValuePair<HairMode, VisualElement>(m, pill));
+                    _modeEls.Add(new KeyValuePair<ColoringMode, VisualElement>(m, pill));
                 }
                 box.Add(row);
             }
             _modesHost.Add(box);
         }
 
-        void OnModeClicked(HairMode m)
+        void OnModeClicked(ColoringMode m)
         {
             if (_target == null || !_target.IsValid || !_customOn || _mode == m) return;
             SetMode(m);
@@ -318,14 +318,14 @@ namespace AtelierCloveria.CustomHairColorTool
 
         static Gradient PreviewGradient(GradientShape s) => new Gradient
         {
-            colorKeys = CustomHairColorToolCore.BuildKeys(s),
-            alphaKeys = CustomHairColorToolCore.BuildAlphaKeys(s),
+            colorKeys = HairColorCore.BuildGradientColorKeys(s),
+            alphaKeys = HairColorCore.BuildGradientAlphaKeys(s),
         };
 
         // 色ごとのグラデなら、出している所が全部無色
-        bool PartClear(HairMode mode, int index)
+        bool PartClear(ColoringMode mode, int index)
         {
-            if (!Modes.Get(mode).IsGradient && IsColorGradOnFor(mode, index))
+            if (!ColoringModes.Get(mode).IsGradient && IsColorGradOnFor(mode, index))
             {
                 var s = ShapeOf(mode, index);
                 return s.RootClear && s.TipClear && (!s.ThreeColors || s.MiddleClear);
@@ -340,9 +340,9 @@ namespace AtelierCloveria.CustomHairColorTool
             else add(r, s.Color);
         }
 
-        void PaintPart(HairMode mode, int index, Rect r, System.Action<Rect, Color> add)
+        void PaintPart(ColoringMode mode, int index, Rect r, System.Action<Rect, Color> add)
         {
-            if (!Modes.Get(mode).IsGradient && IsColorGradOnFor(mode, index))
+            if (!ColoringModes.Get(mode).IsGradient && IsColorGradOnFor(mode, index))
             {
                 var g = PreviewGradient(DotShape(mode, index));
                 Slices(r, 24, i => OverHair(g.Evaluate((i + 0.5f) / 24f)), add);
@@ -354,7 +354,7 @@ namespace AtelierCloveria.CustomHairColorTool
         }
 
         // 位置は「色が変わる位置」で選んでいるパーツ（全部なら先頭の Decal）
-        GradientShape DotShape(HairMode mode, int color)
+        GradientShape DotShape(ColoringMode mode, int color)
         {
             var s = ShapeOf(mode, color);
             var g = Grad(mode, color);
@@ -402,7 +402,7 @@ namespace AtelierCloveria.CustomHairColorTool
         // EditorPrefs に「グラデ」（1）が残っている人もここで「色」に倒れる
         SubTab ShownSubTab => AvailableSubTabs().Contains(_subTab) ? _subTab : SubTab.Color;
 
-        static string SubTabLabel(SubTab t, HairMode mode)
+        static string SubTabLabel(SubTab t, ColoringMode mode)
         {
             switch (t)
             {
@@ -759,7 +759,7 @@ namespace AtelierCloveria.CustomHairColorTool
             if (IsGradientMode) SetPart(stop);
             else
             {
-                UnityEditor.Undo.RecordObject(this, CustomHairColorToolCore.UndoLabel);
+                UnityEditor.Undo.RecordObject(this, HairColorCore.UndoLabel);
                 _stopIndex = stop;
             }
             SyncUI(false);
@@ -865,9 +865,9 @@ namespace AtelierCloveria.CustomHairColorTool
             return d;
         }
 
-        void PaintPartOnHair(HairMode mode, int index, Rect r, System.Action<Rect, Color> add)
+        void PaintPartOnHair(ColoringMode mode, int index, Rect r, System.Action<Rect, Color> add)
         {
-            if (!Modes.Get(mode).IsGradient && IsColorGradOnFor(mode, index))
+            if (!ColoringModes.Get(mode).IsGradient && IsColorGradOnFor(mode, index))
             {
                 PaintPart(mode, index, r, add);
                 return;

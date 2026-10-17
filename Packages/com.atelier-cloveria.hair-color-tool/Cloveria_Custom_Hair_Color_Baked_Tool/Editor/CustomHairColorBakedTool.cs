@@ -20,6 +20,7 @@ using net.rs64.TexTransTool.Decal;
 using nadena.dev.ndmf;
 using nadena.dev.ndmf.preview;
 #endif
+using AtelierCloveria.CustomHairColorTool;
 using Object = UnityEngine.Object;
 
 namespace AtelierCloveria.CustomHairColorBakedTool
@@ -27,7 +28,7 @@ namespace AtelierCloveria.CustomHairColorBakedTool
     public static class BakedToolInfo
     {
         public const string ToolName = "Cloveria_Custom_Hair_Color_Baked_Tool";
-        public const string Version = "0.3.3";
+        public const string Version = "0.4.0";
         public const string MenuPath = "Tools/Atelier_Cloveria/" + ToolName;
         public const string TexTransToolUrl = "https://ttt.rs64.net/";
         public const string NdmfUrl = "https://ndmf.nadena.dev/";
@@ -207,25 +208,8 @@ namespace AtelierCloveria.CustomHairColorBakedTool
 
         // ---- アバターと商品の検出 ----
 
-        // 型名で判定（VRC SDK を参照しないため）
-        public static bool IsAvatarDescriptor(Component c) => c != null && c.GetType().Name == "VRCAvatarDescriptor";
-
         // 型を参照せず名前で判定（TTT の実験的な部品のため。消えてもコンパイルは止まらない）
         static bool IsInheritBreaker(Component c) => c != null && c.GetType().Name == "IsActiveInheritBreaker";
-
-        public static bool IsAvatarRoot(GameObject go) => go != null && go.GetComponents<Component>().Any(IsAvatarDescriptor);
-
-        /// <summary>VRCAvatarDescriptor を持つ最上位。無ければ transform.root</summary>
-        public static GameObject FindAvatarRoot(GameObject go)
-        {
-            if (go == null) return null;
-            GameObject found = null;
-            for (var t = go.transform; t != null; t = t.parent)
-            {
-                if (IsAvatarRoot(t.gameObject)) found = t.gameObject;
-            }
-            return found != null ? found : go.transform.root.gameObject;
-        }
 
         /// <summary>Custom ノードを持つもの（Cloveria の髪色プレハブ）を先に並べる</summary>
         public static List<ProductCandidate> FindProducts(GameObject avatar)
@@ -253,7 +237,7 @@ namespace AtelierCloveria.CustomHairColorBakedTool
         // ---- 書き出し対象の検出 ----
 
         /// <summary>レンダラーはアバター全体から探す（TTT の Auto 選択に合わせる）</summary>
-        public static List<ExportTarget> Detect(GameObject avatar, GameObject productRoot, List<string> warnings)
+        public static List<ExportTarget> FindExportTargets(GameObject avatar, GameObject productRoot, List<string> warnings)
         {
             var targets = new List<ExportTarget>();
             if (avatar == null || productRoot == null) return targets;
@@ -429,14 +413,6 @@ namespace AtelierCloveria.CustomHairColorBakedTool
             var g = decal == null ? null : new SerializedObject(decal).FindProperty("Gradient").gradientValue;
             if (g == null || g.colorKeys == null || g.colorKeys.Length == 0) return ColorUtility.ToHtmlStringRGB(Color.white);
             return string.Join("_", g.colorKeys.OrderBy(k => k.time).Select(k => ColorUtility.ToHtmlStringRGB(k.color)).Distinct());
-        }
-
-        public static Color ReadColor(SingleGradationDecal decal)
-        {
-            if (decal == null) return Color.white;
-            var g = new SerializedObject(decal).FindProperty("Gradient").gradientValue;
-            if (g == null || g.colorKeys == null || g.colorKeys.Length == 0) return Color.white;
-            return g.colorKeys[0].color;
         }
 
         // ---- 出力先 ----

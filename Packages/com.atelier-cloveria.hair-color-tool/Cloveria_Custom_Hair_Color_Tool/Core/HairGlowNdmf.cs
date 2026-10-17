@@ -162,7 +162,7 @@ namespace AtelierCloveria.CustomHairColorTool
                 if (m == null || mapOf.ContainsKey(m)) continue;
                 var black = s.BlackMaps[i];
                 var sameBlack = new HashSet<Material>(s.TargetMaterials.Where((t, j) => t != null && s.BlackMaps[j] == black));
-                var map = CustomHairColorToolCore.PaintGlowMap(context, s, black.width, group.Renderers, sameBlack);
+                var map = HairColorCore.PaintGlowMap(context, s, black.width, group.Renderers, sameBlack);
                 node.Maps.Add(map);
                 foreach (var t in sameBlack) mapOf[t] = map;
             }
@@ -209,7 +209,7 @@ namespace AtelierCloveria.CustomHairColorTool
         }
     }
 
-    public static partial class CustomHairColorToolCore
+    public static partial class HairColorCore
     {
         static Material s_glowPaintMat;
 
@@ -222,16 +222,16 @@ namespace AtelierCloveria.CustomHairColorTool
             foreach (var d in CollectDecals(s.transform))
             {
                 if (!context.ActiveInHierarchy(d.gameObject)) continue;
-                var color = context.Observe(d, x => ReadColor(x));
+                var color = context.Observe(d, x => GetDecalColor(x));
                 var selector = context.Observe(d, x => x.IslandSelector);
                 if (selector == null) continue;
                 var pins = new List<PinIslandSelector>();
-                HairIslandPick.CollectPins(selector.transform, pins);
+                StrandPicker.CollectStrandPins(selector.transform, pins);
                 pins = pins.Where(p => context.ActiveInHierarchy(p.gameObject)).ToList();
                 layers.Add((color, pins));
             }
 
-            var islands = HairIslandPick.BuildIslands(renderers, targets);
+            var islands = StrandPicker.BuildStrandIslands(renderers, targets);
             if (s_glowPaintMat == null)
             {
                 s_glowPaintMat = new Material(Shader.Find("Hidden/Internal-Colored")) { hideFlags = HideFlags.HideAndDontSave };
@@ -252,7 +252,7 @@ namespace AtelierCloveria.CustomHairColorTool
             s_glowPaintMat.SetPass(0);
             foreach (var (color, pins) in layers)
             {
-                HairIslandPick.MatchPairs(islands, HairIslandPick.PairPins(pins, new List<PinIslandSelector>(), null));
+                StrandPicker.MatchIslandsToPairs(islands, StrandPicker.PairStrandPins(pins, new List<PinIslandSelector>(), null));
                 GL.Begin(GL.TRIANGLES);
                 // TTT が書く画素と同じ値にするため、リニアのときは色をリニアに直す
                 GL.Color(linear ? color.linear : color);

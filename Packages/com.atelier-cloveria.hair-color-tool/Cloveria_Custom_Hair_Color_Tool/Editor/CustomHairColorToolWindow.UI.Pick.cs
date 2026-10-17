@@ -104,7 +104,7 @@ namespace AtelierCloveria.CustomHairColorTool
             return card;
         }
 
-        static string TileKey(int index, PresetTile t) => index + "|" + t.RelPath;
+        static string TileKey(int index, PresetColor t) => index + "|" + t.RelPath;
 
         static int Id(UnityEngine.Object o) => o != null ? o.GetInstanceID() : 0;
 
@@ -308,7 +308,7 @@ namespace AtelierCloveria.CustomHairColorTool
         }
 
         // null＝デフォルトの髪（市松）
-        static void PaintPreset(PresetTile preset, Rect r, Action<Rect, Color> add)
+        static void PaintPreset(PresetColor preset, Rect r, Action<Rect, Color> add)
         {
             if (preset == null) { Checker(r, add); return; }
             switch (preset.Kind)
@@ -318,7 +318,7 @@ namespace AtelierCloveria.CustomHairColorTool
                     add(new Rect(r.x + r.width / 2f, r.y, r.width / 2f, r.height), preset.ColorB);
                     break;
                 case SwatchKind.Gradient:
-                    Slices(r, CustomHairColorToolCore.GradientBarSteps, i => preset.Bar != null && i < preset.Bar.Length ? preset.Bar[i] : Color.white, add);
+                    Slices(r, HairColorCore.GradientBarSteps, i => preset.Bar != null && i < preset.Bar.Length ? preset.Bar[i] : Color.white, add);
                     break;
                 default:
                     add(r, preset.ColorA);
