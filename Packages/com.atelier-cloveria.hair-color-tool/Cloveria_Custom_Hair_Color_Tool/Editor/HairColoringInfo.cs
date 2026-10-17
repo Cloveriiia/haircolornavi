@@ -46,7 +46,6 @@ namespace AtelierCloveria.CustomHairColorTool
         {
             info = null;
             var name = productRoot != null ? productRoot.name : "";
-            if (WithoutInfo.Any(n => SameName(n, name))) return InfoState.Ok;
             if (_infos == null)
             {
                 _infos = AssetDatabase.FindAssets("t:" + nameof(HairColoringInfo))
@@ -55,7 +54,7 @@ namespace AtelierCloveria.CustomHairColorTool
                     .ToList();
             }
             info = _infos.FirstOrDefault(c => c != null && c.Prefab != null && SameName(c.Prefab.name, name));
-            if (info == null) return InfoState.Missing;
+            if (info == null) return WithoutInfo.Any(n => SameName(n, name)) ? InfoState.Ok : InfoState.Missing;
             return IsOlder(ToolInfo.Version, info.MinToolVersion) ? InfoState.ToolTooOld : InfoState.Ok;
         }
 
