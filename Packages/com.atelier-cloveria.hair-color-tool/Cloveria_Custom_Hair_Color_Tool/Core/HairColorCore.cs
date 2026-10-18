@@ -20,7 +20,7 @@ namespace AtelierCloveria.CustomHairColorTool
     public static class ToolInfo
     {
         public const string ToolName = "Cloveria_Custom_Hair_Color_Tool";
-        public const string Version = "0.7.1";
+        public const string Version = "0.8.0";
         public const string MenuPath = "Tools/Atelier_Cloveria/" + ToolName;
         public const string TexTransToolUrl = "https://ttt.rs64.net/";
         public const string ShopUrl = "https://atelier-cloveria.booth.pm/";
@@ -178,6 +178,7 @@ namespace AtelierCloveria.CustomHairColorTool
         Solid = 0,
         TwoTone = 1,
         Gradient = 2,
+        ThreeTone = 3,
     }
 
     public sealed class PresetColor
@@ -190,6 +191,7 @@ namespace AtelierCloveria.CustomHairColorTool
         public SwatchKind Kind;
         public Color ColorA = Color.white;
         public Color ColorB = Color.white;
+        public Color ColorC = Color.white;
         public Color[] Bar;
         public bool Selected;
         public Texture2D Thumbnail;
@@ -504,6 +506,8 @@ namespace AtelierCloveria.CustomHairColorTool
         // 親の名前「A × B」から決められないときの1色目
         static readonly string[] FirstColorNames = { "Main", "Base", "Hair_Main" };
 
+        const string ThirdColorName = "Hair_Third";
+
         static readonly string[] GradientSampleNames = { "Hair_Base", "Hair_Back" };
 
         internal static string PresetColorGroupLabel(string groupName)
@@ -599,16 +603,23 @@ namespace AtelierCloveria.CustomHairColorTool
                         OrderTwoColors(tile.Node.transform, decals, out var first, out var second);
                         tile.ColorA = GetDecalColor(first);
                         tile.ColorB = GetDecalColor(second);
+                        tile.ColorC = tile.ColorB;
+                        var third = ThirdColorOf(tile.Node.transform, decals);
+                        if (third == null) break;
+                        tile.Kind = SwatchKind.ThreeTone;
+                        tile.ColorC = GetDecalColor(third);
                         break;
                     }
                 default:
                     tile.Kind = SwatchKind.Solid; // Decal が複数（髪＋しっぽ など）でも同じ色のため先頭を使う
                     tile.ColorA = GetDecalColor(decals[0]);
                     tile.ColorB = tile.ColorA;
+                    tile.ColorC = tile.ColorA;
                     break;
             }
             tile.ColorA.a = 1f;
             tile.ColorB.a = 1f;
+            tile.ColorC.a = 1f;
         }
 
         // 2色の並び：親の名前「A × B」→ Main/Base/Hair_Main → Hierarchy の順
@@ -630,6 +641,9 @@ namespace AtelierCloveria.CustomHairColorTool
             first = head;
             second = decals.FirstOrDefault(d => SideOf(node, d) != SideOf(node, head)) ?? decals[1];
         }
+
+        static SingleGradationDecal ThirdColorOf(Transform node, List<SingleGradationDecal> decals)
+            => decals.FirstOrDefault(d => NameIs(SideOf(node, d), ThirdColorName));
 
         static Transform SideOf(Transform node, SingleGradationDecal d)
         {
@@ -655,6 +669,14 @@ namespace AtelierCloveria.CustomHairColorTool
             if (tile == null || tile.Node == null || decals == null || decals.Count < 2) return false;
             OrderTwoColors(tile.Node.transform, decals, out first, out second);
             return first != null && second != null;
+        }
+
+        public static bool OrderPresetColorDecals(PresetColor tile, List<SingleGradationDecal> decals, out SingleGradationDecal first, out SingleGradationDecal second, out SingleGradationDecal third)
+        {
+            third = null;
+            if (!OrderPresetColorDecals(tile, decals, out first, out second)) return false;
+            third = ThirdColorOf(tile.Node.transform, decals);
+            return true;
         }
 
         public static SingleGradationDecal PickGradientSampleDecal(List<SingleGradationDecal> decals)

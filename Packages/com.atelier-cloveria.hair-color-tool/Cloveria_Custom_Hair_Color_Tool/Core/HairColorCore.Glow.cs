@@ -144,6 +144,49 @@ namespace AtelierCloveria.CustomHairColorTool
             });
         }
 
+        public sealed class GlowPattern
+        {
+            public string Label;
+            public string Guid;
+            public Vector2 Tiling;
+            public bool Scales;
+        }
+
+        public static readonly GlowPattern[] GlowPatterns =
+        {
+            new GlowPattern { Label = "しま", Guid = "de5f6251a0f24ac0badb75067888b4c4", Tiling = new Vector2(1f, 3f) },
+            new GlowPattern { Label = "ハート", Guid = "cd60a3c6a97c4d1a8686d7da21caf008", Tiling = new Vector2(5f, 5f), Scales = true },
+            new GlowPattern { Label = "星", Guid = "c37ecd2bf1c04889b8984d345838554f", Tiling = new Vector2(5f, 5f), Scales = true },
+            new GlowPattern { Label = "きらきら", Guid = "7d25a6f2afca4d2abc0c795dce3ac9ff", Tiling = new Vector2(5f, 5f), Scales = true },
+            new GlowPattern { Label = "十字", Guid = "c581e76561eb482abb048ad55c4a75e6", Tiling = new Vector2(5f, 5f), Scales = true },
+            new GlowPattern { Label = "花びら", Guid = "4088fe71c6de41198a917ddea0f592f1", Tiling = new Vector2(5f, 5f), Scales = true },
+            new GlowPattern { Label = "しずく", Guid = "03209049c9cd4c6e9ffff9e79c3bcd3c", Tiling = new Vector2(5f, 5f), Scales = true },
+            new GlowPattern { Label = "葉っぱ", Guid = "3d25a7b2289c45d7848edb993df2ef39", Tiling = new Vector2(5f, 5f), Scales = true },
+            new GlowPattern { Label = "雪", Guid = "f817b48df36440d2b70503b8ca9a95e1", Tiling = new Vector2(5f, 5f), Scales = true },
+            new GlowPattern { Label = "稲妻", Guid = "37b5038984154b8cb49566fa2a09cd30", Tiling = new Vector2(5f, 5f), Scales = true },
+        };
+
+        public static int GetGlowPattern(GlowParts g)
+        {
+            if (g == null || g.Setting.FlowMask == null) return -1;
+            var guid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(g.Setting.FlowMask));
+            return Array.FindIndex(GlowPatterns, p => p.Guid == guid);
+        }
+
+        public static void SetGlowPattern(GlowParts g, int index)
+        {
+            if (g == null || index < 0 || index >= GlowPatterns.Length) return;
+            var p = GlowPatterns[index];
+            var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath(p.Guid));
+            if (tex == null) return;
+            var tiling = p.Scales ? p.Tiling * g.Setting.PatternScale : p.Tiling;
+            WriteSetting(g, so =>
+            {
+                so.FindProperty(nameof(HairGlowSetting.FlowMask)).objectReferenceValue = tex;
+                so.FindProperty(nameof(HairGlowSetting.FlowMaskTiling)).vector2Value = tiling;
+            });
+        }
+
         // SerializedObject で書く（Prefab のインスタンスでは上書きとして残すため）
         static void WriteSetting(GlowParts g, Action<SerializedObject> write)
         {

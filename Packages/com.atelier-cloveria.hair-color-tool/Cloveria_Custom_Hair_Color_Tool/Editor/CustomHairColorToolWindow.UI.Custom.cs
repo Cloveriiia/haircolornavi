@@ -36,10 +36,12 @@ namespace AtelierCloveria.CustomHairColorTool
         readonly List<KeyValuePair<int, VisualElement>> _gradPartEls = new List<KeyValuePair<int, VisualElement>>();
         // 毛束調整（単色・グラデーション）も同じ部品
         Label _strandSwap, _strandUnpaint, _strandStart, _strandCut, _strandMessage, _strandReset;
-        VisualElement _strandDotA, _strandDotB, _strandDotA2, _strandActions;
-        readonly Label[] _strandCountNums = new Label[3];
-        readonly Label[] _strandCountNames = new Label[3];
-        readonly VisualElement[] _strandCountBoxes = new VisualElement[3];
+        VisualElement _strandDotA, _strandDotB, _strandDotC, _strandDotA2, _strandActions;
+        Label _strandArrow, _strandArrowC;
+        readonly Label[] _strandCountNums = new Label[4];
+        readonly Label[] _strandCountNames = new Label[4];
+        readonly VisualElement[] _strandCountBoxes = new VisualElement[4];
+        static readonly int[] StrandCountIndex = { 0, 1, 4, 2 };
         string _sigGate, _sigModes, _sigModeState, _sigParts, _sigPartState, _sigStrips, _sigSubTabs, _sigSubState, _sigGradParts, _sigGradBar;
 
         void ResetCustomSignatures()
@@ -794,11 +796,16 @@ namespace AtelierCloveria.CustomHairColorTool
             var swap = ActionButton(_strandSwap, out var dots);
             _strandDotA = HairDot(0);
             _strandDotB = HairDot(1);
+            _strandDotC = HairDot(2);
             dots.Add(_strandDotA);
-            var arrow = new Label("⇄");
-            arrow.AddToClassList("chct-action__arrow");
-            dots.Add(arrow);
+            _strandArrow = new Label("⇄");
+            _strandArrow.AddToClassList("chct-action__arrow");
+            dots.Add(_strandArrow);
             dots.Add(_strandDotB);
+            _strandArrowC = new Label("→");
+            _strandArrowC.AddToClassList("chct-action__arrow");
+            dots.Add(_strandArrowC);
+            dots.Add(_strandDotC);
             swap.AddManipulator(new Clickable(() => OnPickActionClicked((int)PickAction.Swap)));
             actions.Add(swap);
             _strandUnpaint = new Label("デフォルトの髪にする");
@@ -811,7 +818,7 @@ namespace AtelierCloveria.CustomHairColorTool
             card.Add(actions);
 
             var counts = Row("chct-counts");
-            for (var i = 0; i < 3; i++)
+            for (var i = 0; i < 4; i++)
             {
                 var box = new VisualElement();
                 box.AddToClassList("chct-count");
@@ -881,6 +888,7 @@ namespace AtelierCloveria.CustomHairColorTool
         {
             var ps = CurrentPins;
             var paint = ps != null && ps.Kind == PinKind.Paint;
+            var three = !paint && ps != null && ps.ColorCount > 2;
             Show(_strandActions, !paint);
             if (!paint)
             {
@@ -893,17 +901,27 @@ namespace AtelierCloveria.CustomHairColorTool
                 _strandDotB.Q<PaintBox>().MarkDirtyRepaint();
                 _strandDotA.EnableInClassList("chct-dot--clear", clearA);
                 _strandDotB.EnableInClassList("chct-dot--clear", clearB);
+                _strandSwap.text = three ? "色を回す" : "色を入れ替える";
+                _strandArrow.text = three ? "→" : "⇄";
+                Show(_strandArrowC, three);
+                Show(_strandDotC, three);
+                if (three)
+                {
+                    _strandDotC.Q<PaintBox>().MarkDirtyRepaint();
+                    _strandDotC.EnableInClassList("chct-dot--clear", PartClear(_mode, 2));
+                }
             }
             _strandStart.text = _picking ? "毛束選びを完了（Esc）" : "シーン上で毛束を選ぶ";
             _strandStart.EnableInClassList("chct-btn--big", !_picking);
             _strandStart.EnableInClassList("chct-btn--soft", _picking);
-            var c = _pickCounts ?? new int[4];
-            for (var i = 0; i < 3; i++)
+            var c = _pickCounts ?? new int[5];
+            for (var i = 0; i < 4; i++)
             {
-                Show(_strandCountBoxes[i], !paint || i != 1);
-                _strandCountNums[i].text = (i < c.Length ? c[i] : 0).ToString();
+                var k = StrandCountIndex[i];
+                Show(_strandCountBoxes[i], paint ? i == 0 || i == 3 : i != 2 || three);
+                _strandCountNums[i].text = (k < c.Length ? c[k] : 0).ToString();
                 if (paint) _strandCountNames[i].text = i == 0 ? "塗る" : "デフォルトの髪";
-                else _strandCountNames[i].text = i < 2 ? PartLabel(_mode, i) + (PartClear(_mode, i) ? "（" + NoneSwatch.Label + "）" : "") : "デフォルトの髪";
+                else _strandCountNames[i].text = i < 3 ? PartLabel(_mode, i) + (PartClear(_mode, i) ? "（" + NoneSwatch.Label + "）" : "") : "デフォルトの髪";
             }
             var cut = c.Length > 3 ? c[3] : 0;
             _strandCut.text = cut > 0 ? "真ん中で分かれる毛束 " + cut + " 本（ここでは変えられません）" : "";

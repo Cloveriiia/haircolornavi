@@ -20,19 +20,20 @@ namespace AtelierCloveria.CustomHairColorTool
         [SerializeField] List<int> _pinOrigIds = new List<int>(); // Unpack した商品で「最初に戻す」に使う
         [SerializeField] List<bool> _pinOrigOn = new List<bool>();
         Dictionary<int, bool> _pinOrig;
-        readonly Dictionary<int, bool> _pinBeforeUnpaint = new Dictionary<int, bool>();
+        readonly Dictionary<int, int> _pinBeforeUnpaint = new Dictionary<int, int>();
 
         bool _picking;
         ColoringMode _pickMode;
         List<StrandIsland> _pickIslands;
         StrandColorPins _pickMatchedTo;
         int _pickSignature;
+        double _pickCheckedAt;
         readonly Dictionary<SceneView, bool> _pickMouseMoveBefore = new Dictionary<SceneView, bool>();
         int _pickHover = -1;
         string _pickMessage;
         double _pickMessageAt;
         [SerializeField] bool _pickHidTools; // スクリプトの読み直し後も戻せるよう保存する
-        int[] _pickCounts = new int[4];
+        int[] _pickCounts = new int[5];
         // 選んでいる間は光を止める（毛束を選ぶたびに光の画像を作り直して重いため）
         // 側とモードは保存する（スクリプトの読み直しで終わっても戻せるように）
         [SerializeField] int _pickGlowSide = -1;
@@ -43,6 +44,7 @@ namespace AtelierCloveria.CustomHairColorTool
         PickAction _pickAction = PickAction.Swap;
 
         const double PickMessageSeconds = 4.0;
+        const double PickRecheckSeconds = 0.25;
 
         StrandColorPins CurrentPins => _target != null && _target.IsValid && _target.Has(_mode) ? _target.ModeParts[_mode].Pins : null;
 
@@ -66,7 +68,7 @@ namespace AtelierCloveria.CustomHairColorTool
         {
             if (!_picking && _pickHidTools) { Tools.hidden = false; _pickHidTools = false; } // 選んでいる途中でスクリプトが読み直された
             if (!_picking && _pickGlowSide >= 0) ResumePickGlow();
-            _pickCounts = new int[4];
+            _pickCounts = new int[5];
             _pickDiffers = false;
             if (_target == null || !_target.IsValid) return;
             foreach (var mt in _target.ModeParts.Values)
@@ -206,11 +208,31 @@ namespace AtelierCloveria.CustomHairColorTool
                 sig = PickSignature(renderers, _pickIslands);
             }
             _pickSignature = sig;
+            _pickCheckedAt = EditorApplication.timeSinceStartup;
             if (_pickMatchedTo != ps)
             {
                 StrandPicker.RefreshPairPoints(ps.Pairs); // 組の位置は Refresh 時点の値のため、毛束と同じ時点で取り直す
-                StrandPicker.MatchIslandsToPairs(_pickIslands, ps.Pairs);
+                if (!SamePairPoints(_pickMatchedTo, ps)) StrandPicker.MatchIslandsToPairs(_pickIslands, ps.Pairs);
                 _pickMatchedTo = ps;
+            }
+            return true;
+        }
+
+        bool EnsurePickIslandsOnMove()
+        {
+            if (_pickIslands != null && _pickMatchedTo != null && _pickMatchedTo == CurrentPins && EditorApplication.timeSinceStartup - _pickCheckedAt < PickRecheckSeconds) return true;
+            return EnsurePickIslands();
+        }
+
+        static bool SamePairPoints(StrandColorPins before, StrandColorPins now)
+        {
+            if (before == null || before.Pairs.Count != now.Pairs.Count) return false;
+            for (var i = 0; i < now.Pairs.Count; i++)
+            {
+                var a = before.Pairs[i];
+                var b = now.Pairs[i];
+                if (a.Name != b.Name || a.Point != b.Point || a.Alt.Count != b.Alt.Count) return false;
+                for (var k = 0; k < a.Alt.Count; k++) if (a.Alt[k] != b.Alt[k]) return false;
             }
             return true;
         }
@@ -312,7 +334,7 @@ namespace AtelierCloveria.CustomHairColorTool
             return result;
         }
 
-        string SideText(int side) => PaintPick ? (side == 0 ? "塗る" : "デフォルトの髪") : side == 0 ? PartLabel(_mode, 0) : side == 1 ? PartLabel(_mode, 1) : "デフォルトの髪";
+        string SideText(int side) => PaintPick ? (side == 0 ? "塗る" : "デフォルトの髪") : side >= 0 ? PartLabel(_mode, side) : "デフォルトの髪";
 
         void ResetPick()
         {
@@ -340,9 +362,9 @@ namespace AtelierCloveria.CustomHairColorTool
             var p = ps.Pairs[isl.Pairs[0]];
             if (isl.Pairs.Any(i => ps.Pairs[i].IsCut)) return p.Name + "（真ん中で分かれる毛束。変えられません）";
             if (ps.Kind == PinKind.Paint) return p.Name + (p.OnA ? "（いま 塗る → クリックでデフォルトの髪）" : "（いま デフォルトの髪 → クリックで塗る）");
-            var now = p.OnB ? 1 : p.OnA ? 0 : -1;
+            var now = p.OnC ? 2 : p.OnB ? 1 : p.OnA ? 0 : -1;
             if (_pickAction == PickAction.Unpaint) return p.Name + (now < 0 ? "（いま デフォルトの髪 → クリックで前の色に戻す）" : "（いま " + SideText(now) + " → クリックでデフォルトの髪）");
-            var next = now == 0 ? 1 : 0;
+            var next = ps.ColorCount > 2 ? (now < 0 ? 0 : (now + 1) % 3) : now == 0 ? 1 : 0;
             return p.Name + "（いま " + SideText(now) + " → クリックで " + SideText(next) + "）";
         }
 
@@ -369,7 +391,7 @@ namespace AtelierCloveria.CustomHairColorTool
 
             if (e.type == EventType.MouseMove || e.type == EventType.MouseDrag)
             {
-                if (EnsurePickIslands())
+                if (EnsurePickIslandsOnMove())
                 {
                     var over = StrandPicker.RaycastStrand(_pickIslands, HandleUtility.GUIPointToWorldRay(e.mousePosition), out _);
                     if (over != _pickHover) { _pickHover = over; sv.Repaint(); }
@@ -400,7 +422,9 @@ namespace AtelierCloveria.CustomHairColorTool
                 Line(StrandTabLabel(_mode) + "：髪をクリックして分け方を変更中（Esc で完了）");
                 Line(_pickAction == PickAction.Unpaint
                     ? "クリック＝デフォルトの髪にする（もう一度クリックで戻す）"
-                    : "クリック＝" + PartLabel(_mode, 0) + " ⇄ " + PartLabel(_mode, 1) + " を入れ替える");
+                    : CurrentPins.ColorCount > 2
+                        ? "クリック＝" + PartLabel(_mode, 0) + " → " + PartLabel(_mode, 1) + " → " + PartLabel(_mode, 2) + " の順に変える"
+                        : "クリック＝" + PartLabel(_mode, 0) + " ⇄ " + PartLabel(_mode, 1) + " を入れ替える");
             }
             Line(HoverText());
             if (!string.IsNullOrEmpty(_pickMessage) && EditorApplication.timeSinceStartup - _pickMessageAt < PickMessageSeconds) Line(_pickMessage);

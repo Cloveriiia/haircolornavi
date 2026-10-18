@@ -30,6 +30,7 @@ namespace AtelierCloveria.CustomHairColorTool
         float _glowStrength = GlowStrengthDefault;
         bool _glowHasFlow;
         bool _glowFlowOn;
+        int _glowPattern = -1;
         float _glowFlowVelocity = HairColorCore.FlowSpeedDefault;
         bool _glowMaterialHit;
         bool _glowPending;
@@ -59,6 +60,7 @@ namespace AtelierCloveria.CustomHairColorTool
             }
             _glowHasFlow = HairColorCore.CanFlowGlow(_target, g);
             _glowFlowOn = _glowHasFlow && HairColorCore.IsGlowFlowOn(g);
+            _glowPattern = HairColorCore.GetGlowPattern(g);
             _glowMaterialHit = HairColorCore.IsGlowMaterialOnAvatar(_target, g);
         }
 
@@ -204,6 +206,19 @@ namespace AtelierCloveria.CustomHairColorTool
             _glowFlowOn = dir != 0;
             if (dir != 0) _glowFlowVelocity = dir == 1 ? speed : -speed;
             HairColorCore.SetGlowFlow(g, _glowFlowOn, _glowFlowVelocity);
+            SceneView.RepaintAll();
+            Refresh();
+        }
+
+        void SetGlowPattern(int index)
+        {
+            var g = CurrentGlow;
+            if (g == null) return;
+            Undo.IncrementCurrentGroup();
+            Undo.SetCurrentGroupName(HairColorCore.UndoLabel);
+            Undo.RecordObject(this, HairColorCore.UndoLabel);
+            FlushGlowPending();
+            HairColorCore.SetGlowPattern(g, index);
             SceneView.RepaintAll();
             Refresh();
         }

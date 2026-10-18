@@ -26,8 +26,9 @@ namespace AtelierCloveria.CustomHairColorTool
     public sealed class StrandColorPins
     {
         public PinKind Kind = PinKind.TwoSides;
-        public readonly IslandSelectorOR[] Sides = new IslandSelectorOR[2]; // Paint では [0] だけ（Decals も同じ）
-        public readonly SingleGradationDecal[] Decals = new SingleGradationDecal[2];
+        public readonly IslandSelectorOR[] Sides = new IslandSelectorOR[3]; // Paint では [0] だけ（Decals も同じ）
+        public readonly SingleGradationDecal[] Decals = new SingleGradationDecal[3];
+        public int ColorCount = 2;
         public readonly List<IslandSelectorOR> Groups = new List<IslandSelectorOR>(); // Paint 用（重ならない）
         public readonly List<SingleGradationDecal> AllDecals = new List<SingleGradationDecal>();
         public bool PresetsShare;
@@ -62,7 +63,7 @@ namespace AtelierCloveria.CustomHairColorTool
             var product = custom.parent;
             if (product == null) return null;
             var ps = new StrandColorPins();
-            var lists = new[] { new List<PinIslandSelector>(), new List<PinIslandSelector>() };
+            var lists = new[] { new List<PinIslandSelector>(), new List<PinIslandSelector>(), new List<PinIslandSelector>() };
             for (var c = 0; c < 2; c++)
             {
                 var d = mt.Decals[c];
@@ -74,6 +75,19 @@ namespace AtelierCloveria.CustomHairColorTool
                 StrandPicker.CollectStrandPins(or.transform, lists[c]);
             }
             if (ps.Sides[0] == ps.Sides[1] || lists[0].Count == 0 || lists[1].Count == 0) return null;
+            var third = mt.Decals.Count > 2 ? mt.Decals[2] : null;
+            var thirdOr = third != null ? third.IslandSelector as IslandSelectorOR : null;
+            if (thirdOr != null && thirdOr != ps.Sides[0] && thirdOr != ps.Sides[1] && UnderSelectors(thirdOr.transform, product))
+            {
+                StrandPicker.CollectStrandPins(thirdOr.transform, lists[2]);
+                if (lists[2].Count > 0)
+                {
+                    ps.Sides[2] = thirdOr;
+                    ps.Decals[2] = third;
+                    ps.AllDecals.Add(third);
+                    ps.ColorCount = 3;
+                }
+            }
 
             // _Cut 仲間の Decal が参照する目印。ここがオンの毛束はクリックで変えない
             var cut = new List<PinIslandSelector>();
@@ -82,13 +96,14 @@ namespace AtelierCloveria.CustomHairColorTool
                 foreach (var f in kv.Value)
                 {
                     if (f == null || f.IslandSelector == null) continue;
-                    if (f.IslandSelector is IslandSelectorOR fo) { if (fo != ps.Sides[0] && fo != ps.Sides[1]) StrandPicker.CollectStrandPins(fo.transform, cut); }
+                    if (f.IslandSelector is IslandSelectorOR fo) { if (!ps.Sides.Contains(fo)) StrandPicker.CollectStrandPins(fo.transform, cut); }
                     else if (f.IslandSelector is PinIslandSelector fp) cut.Add(fp);
                 }
             }
             ps.AllPins.AddRange(lists[0]);
             ps.AllPins.AddRange(lists[1]);
-            ps.Pairs = StrandPicker.PairStrandPins(lists[0], lists[1], cut);
+            ps.AllPins.AddRange(lists[2]);
+            ps.Pairs = StrandPicker.PairStrandPins(lists[0], lists[1], cut, ps.ColorCount > 2 ? lists[2] : null);
             ps.PresetsShare = PresetsSharePins(product, info, ps);
             return ps;
         }
@@ -162,10 +177,10 @@ namespace AtelierCloveria.CustomHairColorTool
             return false;
         }
 
-        // 両方オンは 2色目に数える（後ろの Decal が上に乗るため）。Paint は n[0]＝塗る・n[2]＝デフォルトの髪
+        // 2つ以上オンは後ろの色に数える（後ろの Decal が上に乗るため）。n[4]＝3色目。Paint は n[0]＝塗る・n[2]＝デフォルトの髪
         public static int[] CountStrandsPerColor(StrandColorPins ps)
         {
-            var n = new int[4];
+            var n = new int[5];
             if (ps == null) return n;
             if (ps.Kind == PinKind.Paint)
             {
@@ -180,17 +195,24 @@ namespace AtelierCloveria.CustomHairColorTool
             foreach (var p in ps.Pairs)
             {
                 if (p.IsCut) { n[3]++; continue; }
-                if (p.A.Count == 0 || p.B.Count == 0) continue;
-                if (p.OnB) n[1]++;
+                if (!Usable(ps, p)) continue;
+                if (p.OnC) n[4]++;
+                else if (p.OnB) n[1]++;
                 else if (p.OnA) n[0]++;
                 else n[2]++;
             }
             return n;
         }
 
-        // Undo のグループは呼ぶ側で切る（1クリック＝1回）。side は書いたあとの側（0＝1色目・1＝2色目・-1＝塗らない）
+        static bool Usable(StrandColorPins ps, PinPair p) => p.A.Count > 0 && p.B.Count > 0 && (ps.ColorCount < 3 || p.C.Count > 0);
+
+        static int CurrentSide(PinPair p) => p.OnC ? 2 : p.OnB ? 1 : p.OnA ? 0 : -1;
+
+        static List<PinIslandSelector> SidePins(PinPair p, int side) => side == 0 ? p.A : side == 1 ? p.B : p.C;
+
+        // Undo のグループは呼ぶ側で切る（1クリック＝1回）。side は書いたあとの側（0＝1色目・1＝2色目・2＝3色目・-1＝塗らない）
         // Paint は exclude を見ずに 塗る ⇄ デフォルトの髪 を入れ替える
-        public static PickResult ToggleStrandColor(StrandColorPins ps, IEnumerable<int> pairIndices, bool exclude, out int side, IDictionary<int, bool> originals = null, IDictionary<int, bool> beforeUnpaint = null)
+        public static PickResult ToggleStrandColor(StrandColorPins ps, IEnumerable<int> pairIndices, bool exclude, out int side, IDictionary<int, bool> originals = null, IDictionary<int, int> beforeUnpaint = null)
         {
             side = -1;
             if (ps == null || pairIndices == null) return PickResult.NoPin;
@@ -206,17 +228,18 @@ namespace AtelierCloveria.CustomHairColorTool
                 return WritePins(paint.SelectMany(p => p.A).Where(pin => pin != null && pin.gameObject.activeSelf != on).Select(pin => (pin.gameObject, on)).ToList());
             }
             // 1つの毛束に組が2つ以上ある＝同じ面に重なる毛束。一緒に同じ側にする
-            var usable = pairs.Where(p => p.A.Count > 0 && p.B.Count > 0).ToList();
+            var usable = pairs.Where(p => Usable(ps, p)).ToList();
             if (usable.Count == 0) return PickResult.NoPin;
 
-            bool onA, onB;
             var key = usable[0].A.FirstOrDefault(pin => pin != null)?.gameObject.GetInstanceID() ?? 0;
+            if (ps.ColorCount > 2) return ToggleThreeColors(usable, exclude, key, out side, originals, beforeUnpaint);
+            bool onA, onB;
             if (exclude && !usable[0].OnA && !usable[0].OnB)
             {
-                if (beforeUnpaint != null && beforeUnpaint.TryGetValue(key, out var wasB))
+                if (beforeUnpaint != null && beforeUnpaint.TryGetValue(key, out var was))
                 {
-                    onA = !wasB;
-                    onB = wasB;
+                    onA = was != 1;
+                    onB = was == 1;
                     beforeUnpaint.Remove(key);
                 }
                 else
@@ -228,7 +251,7 @@ namespace AtelierCloveria.CustomHairColorTool
             }
             else if (exclude)
             {
-                if (beforeUnpaint != null) beforeUnpaint[key] = usable[0].OnB;
+                if (beforeUnpaint != null) beforeUnpaint[key] = usable[0].OnB ? 1 : 0;
                 onA = false;
                 onB = false;
             }
@@ -244,6 +267,44 @@ namespace AtelierCloveria.CustomHairColorTool
                 foreach (var pin in p.B) if (pin != null && pin.gameObject.activeSelf != onB) writes.Add((pin.gameObject, onB));
             }
             return WritePins(writes);
+        }
+
+        static PickResult ToggleThreeColors(List<PinPair> usable, bool exclude, int key, out int side, IDictionary<int, bool> originals, IDictionary<int, int> beforeUnpaint)
+        {
+            var now = CurrentSide(usable[0]);
+            if (exclude && now < 0)
+            {
+                if (beforeUnpaint != null && beforeUnpaint.TryGetValue(key, out var was))
+                {
+                    side = was;
+                    beforeUnpaint.Remove(key);
+                }
+                else side = OriginalSide(usable[0], originals);
+            }
+            else if (exclude)
+            {
+                if (beforeUnpaint != null) beforeUnpaint[key] = now;
+                side = -1;
+            }
+            else side = now < 0 ? 0 : (now + 1) % 3;
+
+            var writes = new List<(GameObject go, bool on)>();
+            foreach (var p in usable)
+            {
+                for (var s = 0; s < 3; s++)
+                {
+                    var on = s == side;
+                    foreach (var pin in SidePins(p, s)) if (pin != null && pin.gameObject.activeSelf != on) writes.Add((pin.gameObject, on));
+                }
+            }
+            return WritePins(writes);
+        }
+
+        static int OriginalSide(PinPair p, IDictionary<int, bool> originals)
+        {
+            for (var s = 2; s > 0; s--)
+                if (SidePins(p, s).Select(pin => GetOriginalStrandPinActive(pin, originals)).FirstOrDefault(v => v.HasValue) == true) return s;
+            return 0;
         }
 
         static PickResult WritePins(List<(GameObject go, bool on)> writes)

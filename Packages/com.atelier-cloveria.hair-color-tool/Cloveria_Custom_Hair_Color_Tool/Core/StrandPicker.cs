@@ -32,10 +32,12 @@ namespace AtelierCloveria.CustomHairColorTool
         public readonly List<PinIslandSelector> A = new List<PinIslandSelector>();
         public readonly List<PinIslandSelector> B = new List<PinIslandSelector>();
         public readonly List<PinIslandSelector> Cut = new List<PinIslandSelector>(); // 真ん中で切る毛束の目印（_Cut 仲間の Decal が参照する側）
+        public readonly List<PinIslandSelector> C = new List<PinIslandSelector>();
         public readonly List<Vector3> Alt = new List<Vector3>();
 
         public bool OnA => A.Any(p => p != null && p.gameObject.activeSelf);
         public bool OnB => B.Any(p => p != null && p.gameObject.activeSelf);
+        public bool OnC => C.Any(p => p != null && p.gameObject.activeSelf);
         public bool IsCut => Cut.Any(p => p != null && p.gameObject.activeSelf);
     }
 
@@ -71,7 +73,7 @@ namespace AtelierCloveria.CustomHairColorTool
 
         static string BaseName(PinIslandSelector pin) => pin.gameObject.name.Substring(0, pin.gameObject.name.IndexOf('+'));
 
-        public static List<PinPair> PairStrandPins(List<PinIslandSelector> a, List<PinIslandSelector> b, List<PinIslandSelector> cut)
+        public static List<PinPair> PairStrandPins(List<PinIslandSelector> a, List<PinIslandSelector> b, List<PinIslandSelector> cut, List<PinIslandSelector> c = null)
         {
             var pairs = new List<PinPair>();
             var cell = new Dictionary<Vector3Int, List<int>>();
@@ -110,10 +112,10 @@ namespace AtelierCloveria.CustomHairColorTool
                     list.Add(pairs.Count);
                     pairs.Add(pair);
                 }
-                (side == 0 ? pair.A : side == 1 ? pair.B : pair.Cut).Add(pin);
+                Bucket(pair, side).Add(pin);
             }
 
-            var sides = new[] { a, b, cut ?? new List<PinIslandSelector>() };
+            var sides = new[] { a, b, cut ?? new List<PinIslandSelector>(), c ?? new List<PinIslandSelector>() };
             for (var s = 0; s < sides.Length; s++)
                 foreach (var p in sides[s]) if (!IsExtraPin(p)) Add(p, s);
 
@@ -125,12 +127,14 @@ namespace AtelierCloveria.CustomHairColorTool
                 {
                     if (!IsExtraPin(p)) continue;
                     if (!byName.TryGetValue(BaseName(p), out var pair)) { Add(p, s); continue; }
-                    (s == 0 ? pair.A : s == 1 ? pair.B : pair.Cut).Add(p);
+                    Bucket(pair, s).Add(p);
                     pair.Alt.Add(PinMidpoint(p));
                 }
             }
             return pairs;
         }
+
+        static List<PinIslandSelector> Bucket(PinPair pair, int side) => side == 0 ? pair.A : side == 1 ? pair.B : side == 2 ? pair.Cut : pair.C;
 
         // アバターを動かした・Undo で戻したときのため、毛束を作り直すときに一緒に呼ぶ
         public static void RefreshPairPoints(List<PinPair> pairs)
@@ -138,7 +142,7 @@ namespace AtelierCloveria.CustomHairColorTool
             if (pairs == null) return;
             foreach (var p in pairs)
             {
-                var all = p.A.Concat(p.B).Concat(p.Cut).Where(x => x != null).ToList();
+                var all = p.A.Concat(p.B).Concat(p.C).Concat(p.Cut).Where(x => x != null).ToList();
                 var pin = all.FirstOrDefault(x => !IsExtraPin(x)) ?? all.FirstOrDefault();
                 if (pin != null) p.Point = PinMidpoint(pin);
                 p.Alt.Clear();

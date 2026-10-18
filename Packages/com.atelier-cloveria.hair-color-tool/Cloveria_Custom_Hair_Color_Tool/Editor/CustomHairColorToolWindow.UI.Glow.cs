@@ -18,9 +18,10 @@ namespace AtelierCloveria.CustomHairColorTool
         Label _glowFollowNote, _glowStrengthValue, _glowSpeedValue, _glowSmoothNote;
         ColorField _glowColorField;
         Slider _glowStrengthSlider, _glowSpeedSlider;
-        readonly VisualElement[] _glowSideEls = new VisualElement[3];
-        readonly VisualElement[] _glowSideDots = new VisualElement[2];
+        readonly VisualElement[] _glowSideEls = new VisualElement[4];
+        readonly VisualElement[] _glowSideDots = new VisualElement[3];
         readonly VisualElement[] _glowFlowEls = new VisualElement[3];
+        readonly VisualElement[] _glowPatternEls = new VisualElement[HairColorCore.GlowPatterns.Length];
 
         VisualElement BuildGlowPanel()
         {
@@ -32,7 +33,7 @@ namespace AtelierCloveria.CustomHairColorTool
             card.Add(_glowControls);
             _glowControls.Add(GlowLabel("光らせる色"));
             var sides = Pills();
-            for (var k = -1; k < 2; k++)
+            for (var k = -1; k < 3; k++)
             {
                 var side = k;
                 var pill = new VisualElement();
@@ -100,6 +101,22 @@ namespace AtelierCloveria.CustomHairColorTool
 
             _glowSpeedBox = new VisualElement();
             _glowFlowBox.Add(_glowSpeedBox);
+            _glowSpeedBox.Add(GlowLabel("模様"));
+            var patterns = Pills();
+            var patternRow = patterns.Q(className: "chct-pills");
+            patternRow.AddToClassList("chct-pills--wrap");
+            for (var k = 0; k < HairColorCore.GlowPatterns.Length; k++)
+            {
+                var index = k;
+                var pill = new Label(HairColorCore.GlowPatterns[k].Label);
+                pill.AddToClassList("chct-pill");
+                pill.AddToClassList("chct-pill--pattern");
+                pill.AddToClassList(HeadingClass);
+                pill.AddManipulator(new Clickable(() => OnGlowPatternClicked(index)));
+                patternRow.Add(pill);
+                _glowPatternEls[k] = pill;
+            }
+            _glowSpeedBox.Add(patterns);
             _glowSpeedBox.Add(GlowLabel("流れる速さ"));
             _glowSpeedSlider = new Slider(FlowSpeedMin, FlowSpeedMax);
             _glowSpeedValue = new Label();
@@ -172,9 +189,12 @@ namespace AtelierCloveria.CustomHairColorTool
             Show(_glowPreviewPanel, ready && lit);
             Show(_glowControls, ready);
             if (!ready) return;
-            for (var k = -1; k < 2; k++) _glowSideEls[k + 1].EnableInClassList("is-selected", _glowingColorIndex == k);
-            for (var k = 0; k < 2; k++)
+            var colors = CurrentGlow.Decals.Length;
+            for (var k = -1; k < 3; k++) _glowSideEls[k + 1].EnableInClassList("is-selected", _glowingColorIndex == k);
+            for (var k = 0; k < 3; k++)
             {
+                Show(_glowSideEls[k + 1], k < colors);
+                if (k >= colors) continue;
                 _glowSideDots[k].Q<PaintBox>().MarkDirtyRepaint();
                 _glowSideEls[k + 1].Q<Label>().text = PartLabel(_mode, k);
             }
@@ -196,6 +216,7 @@ namespace AtelierCloveria.CustomHairColorTool
             var dir = !_glowFlowOn ? 0 : _glowFlowVelocity >= 0f ? 1 : 2;
             for (var k = 0; k < 3; k++) _glowFlowEls[k].EnableInClassList("is-selected", dir == k);
             _glowSpeedBox.SetEnabled(_glowFlowOn);
+            for (var k = 0; k < _glowPatternEls.Length; k++) _glowPatternEls[k].EnableInClassList("is-selected", _glowPattern == k);
             var speed = Mathf.Abs(_glowFlowVelocity);
             _glowSpeedSlider.SetValueWithoutNotify(speed);
             _glowSpeedValue.text = speed.ToString("0.00");
@@ -221,6 +242,13 @@ namespace AtelierCloveria.CustomHairColorTool
         {
             if (_target == null || !_target.IsValid || !_customOn || _glowingColorIndex < 0) return;
             SetGlowFlow(dir);
+            SyncUI(false);
+        }
+
+        void OnGlowPatternClicked(int index)
+        {
+            if (_target == null || !_target.IsValid || !_customOn || _glowingColorIndex < 0 || !_glowFlowOn || _glowPattern == index) return;
+            SetGlowPattern(index);
             SyncUI(false);
         }
 

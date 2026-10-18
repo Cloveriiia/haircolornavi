@@ -476,6 +476,17 @@
     color: #1F2326;
 }
 
+.chct-pills--wrap {
+    flex-wrap: wrap;
+}
+
+.chct-pill--pattern {
+    flex-grow: 0;
+    flex-basis: 18%;
+    padding: 5px 2px;
+    font-size: 12px;
+}
+
 .chct-pill--dot {
     flex-direction: row;
     justify-content: center;

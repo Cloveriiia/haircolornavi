@@ -669,7 +669,7 @@ namespace AtelierCloveria.CustomHairColorTool
             }
 
             SingleGradationDecal[] from;
-            if (info.PartLabels.Length >= 2 && HairColorCore.OrderPresetColorDecals(tile, src, out var first, out var second)) from = new[] { first, second };
+            if (info.PartLabels.Length >= 2 && HairColorCore.OrderPresetColorDecals(tile, src, out var first, out var second, out var third)) from = third != null ? new[] { first, second, third } : new[] { first, second };
             else from = new[] { src[0] };
             for (var c = 0; c < mt.Decals.Count; c++)
             {
@@ -680,7 +680,8 @@ namespace AtelierCloveria.CustomHairColorTool
                 color.a = 1f;
                 var key = HairColorCore.GetDecalBlendMode(s);
                 // 単色の Decal にも根元の色を書く（グラデをオフにしたとき根元の色に戻すため）
-                var grad = mt.Grad != null && c < mt.Grad.ColorCount ? HairColorCore.GetPresetPerColorGradientDecals(tile, s, lead.name) : new List<SingleGradationDecal>();
+                var gradName = c >= from.Length && from.Length == 2 ? mt.Decals[1].name : lead.name;
+                var grad = mt.Grad != null && c < mt.Grad.ColorCount ? HairColorCore.GetPresetPerColorGradientDecals(tile, s, gradName) : new List<SingleGradationDecal>();
                 bool gradOn = grad.Count > 0 && mt.Grad.Decals[c].Count > 0;
                 if (mt.Grad != null && c < mt.Grad.ColorCount && HairColorCore.IsPerColorGradientOn(mt.Grad, c) != gradOn) SetColorGradNodes(m, c, gradOn);
                 if (gradOn)

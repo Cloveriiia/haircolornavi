@@ -115,7 +115,7 @@ namespace AtelierCloveria.CustomHairColorTool
             foreach (var t in _tiles)
             {
                 sb.Append('|').Append(t.RelPath).Append(':').Append(Id(t.Thumbnail)).Append(':').Append((int)t.Kind)
-                  .Append(ColorUtility.ToHtmlStringRGB(t.ColorA)).Append(ColorUtility.ToHtmlStringRGB(t.ColorB));
+                  .Append(ColorUtility.ToHtmlStringRGB(t.ColorA)).Append(ColorUtility.ToHtmlStringRGB(t.ColorB)).Append(ColorUtility.ToHtmlStringRGB(t.ColorC));
             }
             var structure = sb.ToString();
             var rebuilt = false;
@@ -316,6 +316,9 @@ namespace AtelierCloveria.CustomHairColorTool
                 case SwatchKind.TwoTone:
                     add(new Rect(r.x, r.y, r.width / 2f, r.height), preset.ColorA);
                     add(new Rect(r.x + r.width / 2f, r.y, r.width / 2f, r.height), preset.ColorB);
+                    break;
+                case SwatchKind.ThreeTone:
+                    Slices(r, 3, i => i == 0 ? preset.ColorA : i == 1 ? preset.ColorB : preset.ColorC, add);
                     break;
                 case SwatchKind.Gradient:
                     Slices(r, HairColorCore.GradientBarSteps, i => preset.Bar != null && i < preset.Bar.Length ? preset.Bar[i] : Color.white, add);
