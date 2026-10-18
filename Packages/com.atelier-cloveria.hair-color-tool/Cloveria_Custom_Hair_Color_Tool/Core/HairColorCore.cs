@@ -20,7 +20,7 @@ namespace AtelierCloveria.CustomHairColorTool
     public static class ToolInfo
     {
         public const string ToolName = "Cloveria_Custom_Hair_Color_Tool";
-        public const string Version = "0.8.0";
+        public const string Version = "0.9.0";
         public const string MenuPath = "Tools/Atelier_Cloveria/" + ToolName;
         public const string TexTransToolUrl = "https://ttt.rs64.net/";
         public const string ShopUrl = "https://atelier-cloveria.booth.pm/";

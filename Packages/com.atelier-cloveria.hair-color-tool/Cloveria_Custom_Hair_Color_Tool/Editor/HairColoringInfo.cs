@@ -13,6 +13,15 @@ namespace AtelierCloveria.CustomHairColorTool
         public string ProductName = "";
         public string BoothUrl = "";
         public string MinToolVersion = "";
+        public List<HairColoringTheme> Themes = new List<HairColoringTheme>();
+    }
+
+    [Serializable]
+    public sealed class HairColoringTheme
+    {
+        public string Label = "";
+        public int GlowPattern = -1;
+        public List<string> Colors = new List<string>();
     }
 
     public enum InfoState

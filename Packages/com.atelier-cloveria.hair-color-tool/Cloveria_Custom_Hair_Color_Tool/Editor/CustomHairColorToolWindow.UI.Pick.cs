@@ -22,9 +22,10 @@ namespace AtelierCloveria.CustomHairColorTool
         const string FilterAll = "all";
         const float CellChrome = 22f; // セルの余白 4×2 ＋ タイルの枠 2×2 ＋ タイルの内側の余白 5×2
 
-        VisualElement _chipsHost, _gridHost, _strandNoticeBox;
+        VisualElement _chipsHost, _themeChipsHost, _gridHost, _strandNoticeBox;
         Label _pickStateNote, _strandNoticeText;
         string _strandNoticePending;
+        string _pickTheme = "";
         readonly Dictionary<string, VisualElement> _tileEls = new Dictionary<string, VisualElement>();
         readonly List<VisualElement> _tileGrids = new List<VisualElement>();
         string _sigTiles, _sigTileState;
@@ -79,6 +80,8 @@ namespace AtelierCloveria.CustomHairColorTool
         // 覚えた絞り込みがこの商品に無ければ「すべて」（覚えた値は書き換えない）
         string ShownFilter => AvailableFilters().Contains(_pickFilter) ? _pickFilter : FilterAll;
 
+        HairColoringTheme ShownTheme => _themes.FirstOrDefault(t => t.Label == _pickTheme);
+
         VisualElement BuildPickTab()
         {
             var card = Card(null);
@@ -86,6 +89,9 @@ namespace AtelierCloveria.CustomHairColorTool
             _chipsHost = new VisualElement();
             _chipsHost.AddToClassList("chct-chips");
             card.Add(_chipsHost);
+            _themeChipsHost = new VisualElement();
+            _themeChipsHost.AddToClassList("chct-chips");
+            card.Add(_themeChipsHost);
             _pickStateNote = new Label();
             _pickStateNote.style.display = DisplayStyle.None;
             card.Add(_pickStateNote);
@@ -111,7 +117,8 @@ namespace AtelierCloveria.CustomHairColorTool
         bool SyncPickTab()
         {
             var sb = new StringBuilder();
-            sb.Append(_target.Custom.GetInstanceID()).Append('|').Append(_hasThumbnails).Append('|').Append(Id(_noneThumbnail)).Append("|f=").Append(ShownFilter);
+            sb.Append(_target.Custom.GetInstanceID()).Append('|').Append(_hasThumbnails).Append('|').Append(Id(_noneThumbnail)).Append("|f=").Append(ShownFilter).Append("|t=").Append(ShownTheme?.Label);
+            foreach (var th in _themes) sb.Append("|th:").Append(th.Label).Append(':').Append(string.Join(",", th.Colors));
             foreach (var t in _tiles)
             {
                 sb.Append('|').Append(t.RelPath).Append(':').Append(Id(t.Thumbnail)).Append(':').Append((int)t.Kind)
@@ -153,12 +160,32 @@ namespace AtelierCloveria.CustomHairColorTool
                 _chipsHost.Add(chip);
             }
             Show(_chipsHost, filters.Count > 2);
+
+            _themeChipsHost.Clear();
+            var theme = ShownTheme;
+            foreach (var th in _themes)
+            {
+                var label = th.Label;
+                var chip = Chip(label, () => OnThemeClicked(label));
+                chip.EnableInClassList("is-selected", th == theme);
+                _themeChipsHost.Add(chip);
+            }
+            Show(_themeChipsHost, _themes.Count > 0);
         }
 
         void OnFilterClicked(string key)
         {
-            if (string.IsNullOrEmpty(key) || _pickFilter == key) return;
+            if (string.IsNullOrEmpty(key) || (_pickFilter == key && ShownTheme == null)) return;
             _pickFilter = key;
+            _pickTheme = "";
+            SaveUiPrefs();
+            SyncUI(false);
+        }
+
+        void OnThemeClicked(string label)
+        {
+            _pickTheme = _pickTheme == label ? "" : label;
+            _pickFilter = FilterAll;
             SaveUiPrefs();
             SyncUI(false);
         }
@@ -172,6 +199,18 @@ namespace AtelierCloveria.CustomHairColorTool
             var first = NewGrid();
             first.Add(BuildTile(NoneKey, new TileEntry { Label = NoneLabel, Thumbnail = _noneThumbnail }));
             _gridHost.Add(first);
+            var theme = ShownTheme;
+            if (theme != null)
+            {
+                foreach (var rel in theme.Colors)
+                {
+                    var i = _tiles.FindIndex(t => t.RelPath == rel);
+                    if (i < 0) continue;
+                    var t = _tiles[i];
+                    first.Add(BuildTile(TileKey(i, t), new TileEntry { Label = t.Label, Preset = t, Thumbnail = t.Thumbnail }));
+                }
+                return;
+            }
             if (f != FilterAll)
             {
                 for (var i = 0; i < _tiles.Count; i++)

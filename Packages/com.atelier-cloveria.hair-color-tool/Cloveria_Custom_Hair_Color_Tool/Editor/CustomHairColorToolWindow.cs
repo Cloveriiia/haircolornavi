@@ -122,6 +122,7 @@ namespace AtelierCloveria.CustomHairColorTool
         InfoState _infoState;
         string _infoNeed;
         string _productName;
+        List<HairColoringTheme> _themes = new List<HairColoringTheme>();
         bool _customDiffers;       // 「前のカスタムの続きから」を出すか
         readonly Dictionary<string, Texture2D> _thumbCache = new Dictionary<string, Texture2D>();
 
@@ -265,6 +266,7 @@ namespace AtelierCloveria.CustomHairColorTool
             _infoState = InfoState.Ok;
             _infoNeed = null;
             _productName = null;
+            _themes = new List<HairColoringTheme>();
 
             _target = HairColorCore.FindColoringProduct(Selection.activeGameObject);
             if (_target == null || !_target.IsValid) return;
@@ -276,6 +278,7 @@ namespace AtelierCloveria.CustomHairColorTool
                 return;
             }
             _productName = info != null ? info.ProductName : null;
+            if (info != null) _themes = info.Themes;
 
             var customId = _target.Custom.GetInstanceID();
             if (customId != _lastCustomId)
@@ -653,6 +656,8 @@ namespace AtelierCloveria.CustomHairColorTool
             if (src.Count == 0 || !_target.Has(m)) return;
             var info = ColoringModes.Get(m);
             var mt = _target.ModeParts[m];
+            var theme = _themes.FirstOrDefault(t => t.Colors.Contains(tile.RelPath));
+            if (theme != null && mt.Glow != null) HairColorCore.SetGlowPattern(mt.Glow, theme.GlowPattern);
             if (info.IsGradient)
             {
                 var sample = HairColorCore.PickGradientSampleDecal(src);

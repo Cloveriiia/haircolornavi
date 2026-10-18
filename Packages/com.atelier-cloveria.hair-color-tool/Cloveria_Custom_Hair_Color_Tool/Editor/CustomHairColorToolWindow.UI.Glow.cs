@@ -39,6 +39,7 @@ namespace AtelierCloveria.CustomHairColorTool
                 var pill = new VisualElement();
                 pill.AddToClassList("chct-pill");
                 pill.AddToClassList("chct-pill--dot");
+                if (k < 0) pill.AddToClassList("chct-pill--fit");
                 if (k >= 0)
                 {
                     var dot = new VisualElement();
