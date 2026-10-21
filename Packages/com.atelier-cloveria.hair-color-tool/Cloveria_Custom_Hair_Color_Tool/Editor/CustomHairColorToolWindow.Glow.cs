@@ -31,7 +31,8 @@ namespace AtelierCloveria.CustomHairColorTool
         bool _glowHasFlow;
         bool _glowFlowOn;
         int _glowPattern = -1;
-        float _glowFlowVelocity = HairColorCore.FlowSpeedDefault;
+        bool _glowFlowReverse;
+        float _glowFlowSpeed;
         bool _glowMaterialHit;
         bool _glowPending;
         bool _glowColorPending;
@@ -56,10 +57,11 @@ namespace AtelierCloveria.CustomHairColorTool
             if (!_glowPending) // 間引き中の値を、書く前の値で上書きしない
             {
                 _glowStrength = HairColorCore.GetGlowStrength(g);
-                _glowFlowVelocity = HairColorCore.GetGlowFlowVelocity(g);
+                _glowFlowSpeed = HairColorCore.GetGlowFlowSpeed(g);
             }
             _glowHasFlow = HairColorCore.CanFlowGlow(_target, g);
             _glowFlowOn = _glowHasFlow && HairColorCore.IsGlowFlowOn(g);
+            _glowFlowReverse = HairColorCore.IsGlowFlowReverse(g);
             _glowPattern = HairColorCore.GetGlowPattern(g);
             _glowMaterialHit = HairColorCore.IsGlowMaterialOnAvatar(_target, g);
         }
@@ -101,7 +103,7 @@ namespace AtelierCloveria.CustomHairColorTool
                 if (g != null)
                 {
                     HairColorCore.SetGlowStrength(g, _glowStrength);
-                    if (_glowHasFlow) HairColorCore.SetGlowFlow(g, _glowFlowOn, _glowFlowVelocity);
+                    if (_glowHasFlow) HairColorCore.SetGlowFlowSpeed(g, _glowFlowSpeed);
                 }
             }
             _glowLastWrite = EditorApplication.timeSinceStartup;
@@ -159,7 +161,7 @@ namespace AtelierCloveria.CustomHairColorTool
         {
             BeginDragUndo();
             Undo.RecordObject(this, HairColorCore.UndoLabel);
-            _glowFlowVelocity = _glowFlowVelocity < 0f ? -speed : speed;
+            _glowFlowSpeed = speed;
             QueueGlowWrite();
         }
 
@@ -201,11 +203,9 @@ namespace AtelierCloveria.CustomHairColorTool
             Undo.SetCurrentGroupName(HairColorCore.UndoLabel);
             Undo.RecordObject(this, HairColorCore.UndoLabel);
             FlushGlowPending();
-            var speed = Mathf.Abs(_glowFlowVelocity);
-            if (speed < FlowSpeedMin) speed = HairColorCore.FlowSpeedDefault;
             _glowFlowOn = dir != 0;
-            if (dir != 0) _glowFlowVelocity = dir == 1 ? speed : -speed;
-            HairColorCore.SetGlowFlow(g, _glowFlowOn, _glowFlowVelocity);
+            if (dir != 0) _glowFlowReverse = dir == 2;
+            HairColorCore.SetGlowFlow(g, _glowFlowOn, _glowFlowReverse);
             SceneView.RepaintAll();
             Refresh();
         }

@@ -116,7 +116,7 @@ namespace AtelierCloveria.CustomHairColorTool
 
         // ---- 流れる光 ----
         // マスクは髪の画像のサンプラーで読むため、髪の画像が Repeat でないと流れない
-        public const float FlowSpeedDefault = 0.5f;
+        public const float FlowSpeedDefault = 0.2f;
 
         public static bool CanFlowGlow(ColoringProduct target, GlowParts g)
         {
@@ -131,17 +131,26 @@ namespace AtelierCloveria.CustomHairColorTool
 
         public static bool IsGlowFlowOn(GlowParts g) => g != null && g.Setting.FlowOn;
 
-        // ＋＝髪の画像の上→下、−＝下→上
-        public static float GetGlowFlowVelocity(GlowParts g) => g != null ? g.Setting.FlowVelocity : FlowSpeedDefault;
+        public static bool IsGlowFlowReverse(GlowParts g) => g != null && g.Setting.FlowReverse;
 
-        public static void SetGlowFlow(GlowParts g, bool on, float velocity)
+        public static float GetGlowFlowSpeed(GlowParts g) => g != null ? g.Setting.FlowSpeed : 0f;
+
+        public static float FlowSpeedOrDefault(float speed) => speed > 0f ? speed : FlowSpeedDefault;
+
+        public static void SetGlowFlow(GlowParts g, bool on, bool reverse)
         {
             if (g == null) return;
             WriteSetting(g, so =>
             {
                 so.FindProperty(nameof(HairGlowSetting.FlowOn)).boolValue = on;
-                so.FindProperty(nameof(HairGlowSetting.FlowVelocity)).floatValue = velocity;
+                so.FindProperty(nameof(HairGlowSetting.FlowReverse)).boolValue = reverse;
             });
+        }
+
+        public static void SetGlowFlowSpeed(GlowParts g, float speed)
+        {
+            if (g == null) return;
+            WriteSetting(g, so => so.FindProperty(nameof(HairGlowSetting.FlowSpeed)).floatValue = speed);
         }
 
         public sealed class GlowPattern
@@ -154,7 +163,7 @@ namespace AtelierCloveria.CustomHairColorTool
 
         public static readonly GlowPattern[] GlowPatterns =
         {
-            new GlowPattern { Label = "しま", Guid = "de5f6251a0f24ac0badb75067888b4c4", Tiling = new Vector2(1f, 3f) },
+            new GlowPattern { Label = "ノーマル", Guid = "de5f6251a0f24ac0badb75067888b4c4", Tiling = new Vector2(1f, 3f) },
             new GlowPattern { Label = "ハート", Guid = "cd60a3c6a97c4d1a8686d7da21caf008", Tiling = new Vector2(5f, 5f), Scales = true },
             new GlowPattern { Label = "星", Guid = "c37ecd2bf1c04889b8984d345838554f", Tiling = new Vector2(5f, 5f), Scales = true },
             new GlowPattern { Label = "きらきら", Guid = "7d25a6f2afca4d2abc0c795dce3ac9ff", Tiling = new Vector2(5f, 5f), Scales = true },

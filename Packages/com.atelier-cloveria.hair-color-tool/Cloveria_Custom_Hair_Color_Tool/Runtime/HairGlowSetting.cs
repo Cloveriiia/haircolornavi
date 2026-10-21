@@ -28,7 +28,8 @@ namespace AtelierCloveria.CustomHairColorTool
         public Texture2D FlowMask;
         public Vector2 FlowMaskTiling = new Vector2(1f, 3f);
         public bool FlowOn = false;
-        public float FlowVelocity = 0.5f; // ＋で画像の上から下へ流れる
+        public bool FlowReverse = false;
+        public float FlowSpeed = 0f;
         public float PatternScale = 1f;
     }
 }

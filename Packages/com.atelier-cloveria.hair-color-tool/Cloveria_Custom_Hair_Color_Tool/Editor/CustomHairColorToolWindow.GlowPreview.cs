@@ -36,7 +36,7 @@ namespace AtelierCloveria.CustomHairColorTool
             var sb = new StringBuilder();
             sb.Append(_target.Avatar.GetInstanceID()).Append('|').Append((int)_mode).Append('|').Append(_glowingColorIndex).Append('|')
               .Append(ColorUtility.ToHtmlStringRGB(_glowColor)).Append('|').Append(_glowStrength.ToString("F3")).Append('|')
-              .Append(_glowFlowOn).Append('|').Append(_glowFlowVelocity.ToString("F2")).Append('|');
+              .Append(_glowFlowOn).Append('|').Append(_glowFlowReverse).Append('|').Append(_glowFlowSpeed.ToString("F2")).Append('|');
             var parts = VisibleParts(_mode);
             sb.Append(StripSignature(parts));
             foreach (var p in parts) sb.Append(State(_mode, p).BlendKey).Append(',');

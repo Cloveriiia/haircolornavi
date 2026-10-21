@@ -214,11 +214,11 @@ namespace AtelierCloveria.CustomHairColorTool
 
             Show(_glowFlowBox, _glowHasFlow);
             if (!_glowHasFlow) return;
-            var dir = !_glowFlowOn ? 0 : _glowFlowVelocity >= 0f ? 1 : 2;
+            var dir = !_glowFlowOn ? 0 : _glowFlowReverse ? 2 : 1;
             for (var k = 0; k < 3; k++) _glowFlowEls[k].EnableInClassList("is-selected", dir == k);
             _glowSpeedBox.SetEnabled(_glowFlowOn);
             for (var k = 0; k < _glowPatternEls.Length; k++) _glowPatternEls[k].EnableInClassList("is-selected", _glowPattern == k);
-            var speed = Mathf.Abs(_glowFlowVelocity);
+            var speed = HairColorCore.FlowSpeedOrDefault(_glowFlowSpeed);
             _glowSpeedSlider.SetValueWithoutNotify(speed);
             _glowSpeedValue.text = speed.ToString("0.00");
             _glowSmoothRow.EnableInClassList("is-on", _flowSmooth);

@@ -110,7 +110,8 @@ namespace AtelierCloveria.CustomHairColorTool
                 m.SetTexture(p + "BlendMask", s.FlowOn ? s.FlowMask : null);
                 m.SetTextureScale(p + "BlendMask", s.FlowMaskTiling);
             }
-            SetVector(m, p + "BlendMask_ScrollRotate", new Vector4(0f, s.FlowVelocity, 0f, 0f));
+            var speed = HairColorCore.FlowSpeedOrDefault(s.FlowSpeed);
+            SetVector(m, p + "BlendMask_ScrollRotate", new Vector4(0f, s.FlowReverse ? -speed : speed, 0f, 0f));
         }
 
         static void SetFloat(Material m, string name, float v) { if (m.HasProperty(name)) m.SetFloat(name, v); }
@@ -150,7 +151,7 @@ namespace AtelierCloveria.CustomHairColorTool
             var root = context.GetAvatarRoot(group.Renderers[0].gameObject);
             var s = root != null ? ActiveSetting(context, root) : null;
             if (s == null) return Task.FromResult<IRenderFilterNode>(new HairGlowNode()); // NDMF は返したノードの OnFrame・Dispose を呼ぶため、空でも返す
-            context.Observe(s, x => (x.EmissionPrefix, x.Strength, x.FlowMask, x.FlowMaskTiling, x.FlowOn, x.FlowVelocity));
+            context.Observe(s, x => (x.EmissionPrefix, x.Strength, x.FlowMask, x.FlowMaskTiling, x.FlowOn, x.FlowReverse, x.FlowSpeed));
             context.Observe(s, x => x.BlackMaps.ToArray(), (a, b) => a.SequenceEqual(b));
 
             // 下地ごとに1枚（アップロード時に TTT が下地ごとに1枚描くのに合わせる）
