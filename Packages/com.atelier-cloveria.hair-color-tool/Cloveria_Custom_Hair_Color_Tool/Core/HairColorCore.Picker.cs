@@ -307,7 +307,7 @@ namespace AtelierCloveria.CustomHairColorTool
             return 0;
         }
 
-        public static void CopyPresetStrandSides(StrandColorPins ps, PresetColor tile, List<SingleGradationDecal> src, SingleGradationDecal first, SingleGradationDecal second)
+        public static void CopyPresetStrandSides(StrandColorPins ps, PresetColor tile, List<SingleGradationDecal> src, SingleGradationDecal first, SingleGradationDecal second, SingleGradationDecal third)
         {
             if (ps == null || ps.PresetsShare || ps.ColorCount < 3) return;
             var node = tile.Node.transform;
@@ -319,7 +319,7 @@ namespace AtelierCloveria.CustomHairColorTool
                     StrandPicker.CollectStrandPins(or.transform, pins);
                 return pins.Distinct().ToList();
             }
-            var from = StrandPicker.PairStrandPins(PinsOf(first), PinsOf(second), null);
+            var from = StrandPicker.PairStrandPins(PinsOf(first), PinsOf(second), null, third != null ? PinsOf(third) : null);
             var near = StrandPicker.MatchDistance * StrandPicker.MatchDistance;
             var writes = new List<(GameObject go, bool on)>();
             foreach (var p in ps.Pairs)
@@ -327,7 +327,7 @@ namespace AtelierCloveria.CustomHairColorTool
                 if (p.IsCut || !Usable(ps, p)) continue;
                 var s = from.Where(f => (f.Point - p.Point).sqrMagnitude <= near).OrderBy(f => (f.Point - p.Point).sqrMagnitude).FirstOrDefault();
                 if (s == null) continue;
-                var want = s.OnB ? 1 : s.OnA ? 0 : -1;
+                var want = s.OnC ? 2 : s.OnB ? 1 : s.OnA ? 0 : -1;
                 for (var k = 0; k < 3; k++)
                 {
                     var on = k == want;

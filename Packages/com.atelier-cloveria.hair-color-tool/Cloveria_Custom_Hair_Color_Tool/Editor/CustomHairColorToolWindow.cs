@@ -714,9 +714,9 @@ namespace AtelierCloveria.CustomHairColorTool
                 st.BlendKey = key;
                 SyncGlowColorToHair(m, c);
             }
-            if (from.Length == 2)
+            if (from.Length >= 2)
             {
-                HairColorCore.CopyPresetStrandSides(mt.Pins, tile, src, from[0], from[1]);
+                HairColorCore.CopyPresetStrandSides(mt.Pins, tile, src, from[0], from[1], from.Length > 2 ? from[2] : null);
                 _pinBeforeUnpaint.Clear();
             }
         }
