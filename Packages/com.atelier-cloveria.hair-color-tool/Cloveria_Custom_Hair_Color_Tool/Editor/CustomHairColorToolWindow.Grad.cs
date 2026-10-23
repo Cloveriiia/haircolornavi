@@ -123,7 +123,7 @@ namespace AtelierCloveria.CustomHairColorTool
 
         bool GradEditing => IsGradientMode || ColorGradOn;
 
-        bool GradHeadAvailable => _target != null && _target.IsValid && (IsGradientMode || (CurrentGrad != null && _partIndex <= 1));
+        bool GradHeadAvailable => _target != null && _target.IsValid && (IsGradientMode || (CurrentGrad != null && _partIndex < CurrentGrad.ColorCount));
 
         void SelectGradPart(int index)
         {

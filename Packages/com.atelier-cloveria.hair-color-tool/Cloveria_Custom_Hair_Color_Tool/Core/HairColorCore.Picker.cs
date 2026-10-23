@@ -307,6 +307,36 @@ namespace AtelierCloveria.CustomHairColorTool
             return 0;
         }
 
+        public static void CopyPresetStrandSides(StrandColorPins ps, PresetColor tile, List<SingleGradationDecal> src, SingleGradationDecal first, SingleGradationDecal second)
+        {
+            if (ps == null || ps.PresetsShare || ps.ColorCount < 3) return;
+            var node = tile.Node.transform;
+            List<PinIslandSelector> PinsOf(SingleGradationDecal lead)
+            {
+                var side = SideOf(node, lead);
+                var pins = new List<PinIslandSelector>();
+                foreach (var or in src.Where(d => SideOf(node, d) == side).Select(d => d.IslandSelector as IslandSelectorOR).Where(o => o != null).Distinct())
+                    StrandPicker.CollectStrandPins(or.transform, pins);
+                return pins.Distinct().ToList();
+            }
+            var from = StrandPicker.PairStrandPins(PinsOf(first), PinsOf(second), null);
+            var near = StrandPicker.MatchDistance * StrandPicker.MatchDistance;
+            var writes = new List<(GameObject go, bool on)>();
+            foreach (var p in ps.Pairs)
+            {
+                if (p.IsCut || !Usable(ps, p)) continue;
+                var s = from.Where(f => (f.Point - p.Point).sqrMagnitude <= near).OrderBy(f => (f.Point - p.Point).sqrMagnitude).FirstOrDefault();
+                if (s == null) continue;
+                var want = s.OnB ? 1 : s.OnA ? 0 : -1;
+                for (var k = 0; k < 3; k++)
+                {
+                    var on = k == want;
+                    foreach (var pin in SidePins(p, k)) if (pin != null && pin.gameObject.activeSelf != on) writes.Add((pin.gameObject, on));
+                }
+            }
+            WritePins(writes);
+        }
+
         static PickResult WritePins(List<(GameObject go, bool on)> writes)
         {
             if (writes.Count == 0) return PickResult.NoChange;

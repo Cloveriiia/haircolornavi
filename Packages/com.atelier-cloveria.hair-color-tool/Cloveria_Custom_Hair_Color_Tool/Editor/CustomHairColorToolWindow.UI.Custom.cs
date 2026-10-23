@@ -584,7 +584,7 @@ namespace AtelierCloveria.CustomHairColorTool
             Show(_gradPartsBox, editing);
             if (!headOn) return changed;
 
-            var toggleAvail = !IsGradientMode && CurrentGrad != null && _partIndex <= 1;
+            var toggleAvail = !IsGradientMode && CurrentGrad != null && _partIndex < CurrentGrad.ColorCount;
             Show(_gradToggleRow, toggleAvail);
             if (toggleAvail)
             {
@@ -741,7 +741,7 @@ namespace AtelierCloveria.CustomHairColorTool
 
         void OnGradToggleClicked()
         {
-            if (_target == null || !_target.IsValid || !_customOn || IsGradientMode || CurrentGrad == null || _partIndex > 1) return;
+            if (_target == null || !_target.IsValid || !_customOn || IsGradientMode || CurrentGrad == null || _partIndex >= CurrentGrad.ColorCount) return;
             ToggleColorGrad(!ColorGradOn);
             SyncUI(false);
         }

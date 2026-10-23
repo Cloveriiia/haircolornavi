@@ -714,6 +714,11 @@ namespace AtelierCloveria.CustomHairColorTool
                 st.BlendKey = key;
                 SyncGlowColorToHair(m, c);
             }
+            if (from.Length == 2)
+            {
+                HairColorCore.CopyPresetStrandSides(mt.Pins, tile, src, from[0], from[1]);
+                _pinBeforeUnpaint.Clear();
+            }
         }
 
         // 覚えていない（古い版で保存したシーン）ときは、オンの色のノードが1つだけならそこ
@@ -979,7 +984,7 @@ namespace AtelierCloveria.CustomHairColorTool
                 return;
             }
             var grad = _target.ModeParts[_mode].Grad;
-            if (grad == null || _partIndex > 1) return;
+            if (grad == null || _partIndex >= grad.ColorCount) return;
             var shape = CurrentGradientShape();
             HairColorCore.SetDecalsGradientKeepSplits(only != null ? new[] { only } : (IList<SingleGradationDecal>)grad.Decals[_partIndex], shape, d => PartShape(d, g));
             // 単色の側は根元の色にそろえる（帯と光の追従に使うため）
