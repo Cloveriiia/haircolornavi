@@ -215,12 +215,19 @@ namespace AtelierCloveria.CustomHairColorTool
             LoadUiPrefs();
             _recent = RecentColors.Load();
             Undo.undoRedoPerformed += OnUndoRedo;
+            EditorApplication.playModeStateChanged += OnPlayModeChanged;
             Refresh();
+        }
+
+        static void OnPlayModeChanged(PlayModeStateChange change)
+        {
+            if (change == PlayModeStateChange.ExitingEditMode) KeepHeadingAtlases();
         }
 
         void OnDisable()
         {
             Undo.undoRedoPerformed -= OnUndoRedo;
+            EditorApplication.playModeStateChanged -= OnPlayModeChanged;
             FlushRecentPending();
             FlushGlowPending();
             StopPicking();

@@ -30,7 +30,75 @@ namespace AtelierCloveria.CustomHairColorTool
             InPhase(BuildPhase.Transforming)
                 .BeforePlugin("net.rs64.tex-trans-tool")
                 .Run(HairGlowPass.Instance)
-                .PreviewingWith(new HairGlowFilter());
+                .PreviewingWith(new HairGlowFilter())
+                .Then.Run(HairShapeKeyZeroPass.Instance);
+
+            InPhase(BuildPhase.Optimizing)
+                .AfterPlugin("net.rs64.tex-trans-tool")
+                .BeforePlugin("com.anatawa12.avatar-optimizer")
+                .Run(HairShapeKeyRestorePass.Instance);
+        }
+    }
+
+    sealed class HairShapeKeyState
+    {
+        public readonly Dictionary<SkinnedMeshRenderer, float[]> Weights = new Dictionary<SkinnedMeshRenderer, float[]>();
+    }
+
+    sealed class HairShapeKeyZeroPass : Pass<HairShapeKeyZeroPass>
+    {
+        public override string DisplayName => "髪のシェイプキーを 0 にする";
+
+        protected override void Execute(BuildContext context)
+        {
+            var state = context.GetState<HairShapeKeyState>();
+            foreach (var smr in HairColorCore.FindDecalTargetRenderers(context.AvatarRootObject))
+            {
+                if (smr.sharedMesh == null || state.Weights.ContainsKey(smr)) continue;
+                var n = smr.sharedMesh.blendShapeCount;
+                var w = new float[n];
+                for (var i = 0; i < n; i++) { w[i] = smr.GetBlendShapeWeight(i); smr.SetBlendShapeWeight(i, 0f); }
+                state.Weights[smr] = w;
+            }
+        }
+    }
+
+    public static partial class HairColorCore
+    {
+        internal static List<SkinnedMeshRenderer> FindDecalTargetRenderers(GameObject avatar)
+        {
+            var result = new List<SkinnedMeshRenderer>();
+            var product = FindProductUnder(avatar);
+            var productRoot = GetProductRoot(product);
+            if (productRoot == null || !HairGlow.ActiveUnder(productRoot.transform, avatar.transform)) return result;
+            var materials = new HashSet<ObjectReference>();
+            var manual = new HashSet<Renderer>();
+            foreach (var d in productRoot.GetComponentsInChildren<SingleGradationDecal>(true))
+            {
+                var rs = d.RendererSelector;
+                if (rs.Mode == net.rs64.TexTransTool.RendererSelectMode.Manual) manual.UnionWith(rs.ManualSelections.Where(r => r != null));
+                else if (rs.UseMaterialFilteringForAutoSelect)
+                    foreach (var m in rs.AutoSelectFilterMaterials) if (m != null) materials.Add(ObjectRegistry.GetReference(m));
+            }
+            foreach (var smr in avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                if (manual.Contains(smr) || smr.sharedMaterials.Any(m => m != null && materials.Contains(ObjectRegistry.GetReference(m))))
+                    result.Add(smr);
+            return result;
+        }
+    }
+
+    sealed class HairShapeKeyRestorePass : Pass<HairShapeKeyRestorePass>
+    {
+        public override string DisplayName => "髪のシェイプキーを戻す";
+
+        protected override void Execute(BuildContext context)
+        {
+            foreach (var kv in context.GetState<HairShapeKeyState>().Weights)
+            {
+                if (kv.Key == null || kv.Key.sharedMesh == null) continue;
+                var n = Mathf.Min(kv.Value.Length, kv.Key.sharedMesh.blendShapeCount);
+                for (var i = 0; i < n; i++) kv.Key.SetBlendShapeWeight(i, kv.Value[i]);
+            }
         }
     }
 

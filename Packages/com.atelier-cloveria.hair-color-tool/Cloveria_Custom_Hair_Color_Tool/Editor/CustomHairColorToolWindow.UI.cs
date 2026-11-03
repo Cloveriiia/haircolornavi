@@ -76,10 +76,109 @@ namespace AtelierCloveria.CustomHairColorTool
             _uiScroll.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
             _uiScroll.AddToClassList("chct-scroll");
             root.Add(_uiScroll);
+            AddGlyphWarmup(root);
             var body = _uiScroll.contentContainer;
             body.AddToClassList("chct-body");
             body.Add(BuildHeaderBand());
             return body;
+        }
+
+        const string HeadingFontGuid = "589ee0acbf9df95468f23f11ed9e0149";
+        static string s_headingGlyphs;
+
+        static string HeadingGlyphs()
+        {
+            if (s_headingGlyphs != null) return s_headingGlyphs;
+            var path = AssetDatabase.GUIDToAssetPath(HeadingFontGuid);
+            s_headingGlyphs = string.IsNullOrEmpty(path) || !System.IO.File.Exists(path) ? "" : CmapCharacters(System.IO.File.ReadAllBytes(path));
+            return s_headingGlyphs;
+        }
+
+        static void KeepHeadingAtlases()
+        {
+            var font = AssetDatabase.LoadAssetAtPath<Font>(AssetDatabase.GUIDToAssetPath(HeadingFontGuid));
+            if (font == null) return;
+            foreach (var asset in Resources.FindObjectsOfTypeAll<ScriptableObject>())
+            {
+                if (asset == null || asset.GetType().Name != "FontAsset" || EditorUtility.IsPersistent(asset)) continue;
+                var made = new List<UnityEngine.Object>();
+                var fromFont = false;
+                var it = new SerializedObject(asset).GetIterator();
+                while (it.Next(true))
+                {
+                    if (it.propertyType != SerializedPropertyType.ObjectReference || it.objectReferenceValue == null) continue;
+                    if (it.objectReferenceValue == font) fromFont = true;
+                    else if (!EditorUtility.IsPersistent(it.objectReferenceValue)) made.Add(it.objectReferenceValue);
+                }
+                if (!fromFont) continue;
+                foreach (var o in made) o.hideFlags |= HideFlags.DontSave;
+            }
+        }
+
+        static string CmapCharacters(byte[] b)
+        {
+            int U16(int o) => (b[o] << 8) | b[o + 1];
+            int U32(int o) => (b[o] << 24) | (b[o + 1] << 16) | (b[o + 2] << 8) | b[o + 3];
+            int cmap = -1;
+            for (int i = 0, n = U16(4); i < n; i++)
+            {
+                var rec = 12 + i * 16;
+                if (b[rec] == 'c' && b[rec + 1] == 'm' && b[rec + 2] == 'a' && b[rec + 3] == 'p') cmap = U32(rec + 8);
+            }
+            if (cmap < 0) return "";
+            int sub = -1;
+            for (int i = 0, n = U16(cmap + 2); i < n; i++)
+            {
+                var rec = cmap + 4 + i * 8;
+                if (U16(rec) == 3 && U16(rec + 2) == 1) sub = cmap + U32(rec + 4);
+            }
+            if (sub < 0 || U16(sub) != 4) return "";
+            int segs = U16(sub + 6) / 2;
+            int ends = sub + 14, starts = ends + segs * 2 + 2, deltas = starts + segs * 2, ranges = deltas + segs * 2;
+            var sb = new System.Text.StringBuilder();
+            for (int s = 0; s < segs; s++)
+            {
+                int start = U16(starts + s * 2), end = U16(ends + s * 2), delta = U16(deltas + s * 2), range = U16(ranges + s * 2);
+                for (int c = start; c <= end && c < 0xFFFF; c++)
+                {
+                    int g;
+                    if (range == 0) g = (c + delta) & 0xFFFF;
+                    else
+                    {
+                        var at = ranges + s * 2 + range + (c - start) * 2;
+                        g = U16(at);
+                        if (g != 0) g = (g + delta) & 0xFFFF;
+                    }
+                    if (g != 0 && c >= 0x20) sb.Append((char)c);
+                }
+            }
+            return sb.ToString();
+        }
+
+        static void AddGlyphWarmup(VisualElement root)
+        {
+            var glyphs = HeadingGlyphs();
+            if (glyphs.Length == 0) return;
+            var warm = new Label(glyphs);
+            warm.name = "chct-glyph-warmup";
+            warm.AddToClassList(HeadingClass);
+            warm.pickingMode = PickingMode.Ignore;
+            warm.style.position = Position.Absolute;
+            warm.style.left = 0;
+            warm.style.top = 0;
+            warm.style.width = 1;
+            warm.style.height = 1;
+            warm.style.overflow = Overflow.Hidden;
+            warm.style.whiteSpace = WhiteSpace.NoWrap;
+            warm.style.color = Color.clear;
+            root.Add(warm);
+            root.schedule.Execute(() =>
+            {
+                warm.RemoveFromHierarchy();
+                KeepHeadingAtlases();
+                root.MarkDirtyRepaint();
+            }).ExecuteLater(150);
+            root.schedule.Execute(root.MarkDirtyRepaint).ExecuteLater(500);
         }
 
         VisualElement BuildHeaderBand()
