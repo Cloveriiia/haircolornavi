@@ -31,12 +31,14 @@ namespace AtelierCloveria.CustomHairColorTool
                 .BeforePlugin("net.rs64.tex-trans-tool")
                 .Run(HairGlowPass.Instance)
                 .PreviewingWith(new HairGlowFilter())
-                .Then.Run(HairShapeKeyZeroPass.Instance);
+                .Then.Run(HairShapeKeyZeroPass.Instance)
+                .PreviewingWith(new HairShapeKeyZeroFilter());
 
             InPhase(BuildPhase.Optimizing)
                 .AfterPlugin("net.rs64.tex-trans-tool")
                 .BeforePlugin("com.anatawa12.avatar-optimizer")
-                .Run(HairShapeKeyRestorePass.Instance);
+                .Run(HairShapeKeyRestorePass.Instance)
+                .PreviewingWith(new HairShapeKeyRestoreFilter());
         }
     }
 
@@ -52,7 +54,7 @@ namespace AtelierCloveria.CustomHairColorTool
         protected override void Execute(BuildContext context)
         {
             var state = context.GetState<HairShapeKeyState>();
-            foreach (var smr in HairColorCore.FindDecalTargetRenderers(context.AvatarRootObject))
+            foreach (var smr in HairColorCore.FindDecalTargetRenderers(context.AvatarRootObject, ComputeContext.NullContext))
             {
                 if (smr.sharedMesh == null || state.Weights.ContainsKey(smr)) continue;
                 var n = smr.sharedMesh.blendShapeCount;
@@ -65,25 +67,37 @@ namespace AtelierCloveria.CustomHairColorTool
 
     public static partial class HairColorCore
     {
-        internal static List<SkinnedMeshRenderer> FindDecalTargetRenderers(GameObject avatar)
+        internal static List<SkinnedMeshRenderer> FindDecalTargetRenderers(GameObject avatar, ComputeContext context)
         {
             var result = new List<SkinnedMeshRenderer>();
-            var product = FindProductUnder(avatar);
-            var productRoot = GetProductRoot(product);
-            if (productRoot == null || !HairGlow.ActiveUnder(productRoot.transform, avatar.transform)) return result;
+            var decals = context.GetComponentsInChildren<SingleGradationDecal>(avatar, true);
+            var productRoot = GetProductRoot(FindProductUnder(avatar));
+            if (productRoot == null || !HairGlow.ActiveUnder(productRoot.transform, avatar.transform, context)) return result;
             var materials = new HashSet<ObjectReference>();
             var manual = new HashSet<Renderer>();
-            foreach (var d in productRoot.GetComponentsInChildren<SingleGradationDecal>(true))
+            foreach (var d in decals)
             {
-                var rs = d.RendererSelector;
-                if (rs.Mode == net.rs64.TexTransTool.RendererSelectMode.Manual) manual.UnionWith(rs.ManualSelections.Where(r => r != null));
-                else if (rs.UseMaterialFilteringForAutoSelect)
-                    foreach (var m in rs.AutoSelectFilterMaterials) if (m != null) materials.Add(ObjectRegistry.GetReference(m));
+                if (!d.transform.IsChildOf(productRoot.transform)) continue;
+                if (context.Observe(d, x => x.RendererSelector.Mode) == net.rs64.TexTransTool.RendererSelectMode.Manual)
+                    manual.UnionWith(context.Observe(d, x => x.RendererSelector.ManualSelections.ToArray(), (a, b) => a.SequenceEqual(b)).Where(r => r != null));
+                else if (context.Observe(d, x => x.RendererSelector.UseMaterialFilteringForAutoSelect))
+                    foreach (var m in context.Observe(d, x => x.RendererSelector.AutoSelectFilterMaterials.ToArray(), (a, b) => a.SequenceEqual(b))) if (m != null) materials.Add(ObjectRegistry.GetReference(m));
             }
-            foreach (var smr in avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true))
-                if (manual.Contains(smr) || smr.sharedMaterials.Any(m => m != null && materials.Contains(ObjectRegistry.GetReference(m))))
+            foreach (var smr in context.GetComponentsInChildren<SkinnedMeshRenderer>(avatar, true))
+                if (manual.Contains(smr) || context.Observe(smr, x => x.sharedMaterials, (a, b) => a.SequenceEqual(b)).Any(m => m != null && materials.Contains(ObjectRegistry.GetReference(m))))
                     result.Add(smr);
             return result;
+        }
+
+        internal static ImmutableList<RenderGroup> ShapeKeyPreviewGroups(ComputeContext context)
+        {
+            var groups = ImmutableList.CreateBuilder<RenderGroup>();
+            foreach (var avatar in context.GetAvatarRoots())
+            {
+                var renderers = FindDecalTargetRenderers(avatar, context);
+                if (renderers.Count > 0) groups.Add(RenderGroup.For(renderers));
+            }
+            return groups.ToImmutable();
         }
     }
 
@@ -102,6 +116,53 @@ namespace AtelierCloveria.CustomHairColorTool
         }
     }
 
+    sealed class HairShapeKeyZeroFilter : IRenderFilter
+    {
+        public ImmutableList<RenderGroup> GetTargetGroups(ComputeContext context) => HairColorCore.ShapeKeyPreviewGroups(context);
+
+        public Task<IRenderFilterNode> Instantiate(RenderGroup group, IEnumerable<(Renderer, Renderer)> proxyPairs, ComputeContext context)
+            => Task.FromResult<IRenderFilterNode>(new HairShapeKeyZeroNode());
+    }
+
+    sealed class HairShapeKeyZeroNode : IRenderFilterNode
+    {
+        internal static readonly Dictionary<Renderer, float[]> Saved = new Dictionary<Renderer, float[]>();
+
+        public RenderAspects WhatChanged => RenderAspects.Shapes;
+
+        public void OnFrame(Renderer original, Renderer proxy)
+        {
+            var smr = (SkinnedMeshRenderer)proxy;
+            if (smr.sharedMesh == null) return;
+            var w = new float[smr.sharedMesh.blendShapeCount];
+            for (var i = 0; i < w.Length; i++) { w[i] = smr.GetBlendShapeWeight(i); smr.SetBlendShapeWeight(i, 0f); }
+            Saved[proxy] = w;
+        }
+    }
+
+    sealed class HairShapeKeyRestoreFilter : IRenderFilter
+    {
+        public ImmutableList<RenderGroup> GetTargetGroups(ComputeContext context) => HairColorCore.ShapeKeyPreviewGroups(context);
+
+        public Task<IRenderFilterNode> Instantiate(RenderGroup group, IEnumerable<(Renderer, Renderer)> proxyPairs, ComputeContext context)
+            => Task.FromResult<IRenderFilterNode>(new HairShapeKeyRestoreNode());
+    }
+
+    sealed class HairShapeKeyRestoreNode : IRenderFilterNode
+    {
+        public RenderAspects WhatChanged => RenderAspects.Shapes;
+
+        public void OnFrame(Renderer original, Renderer proxy)
+        {
+            if (!HairShapeKeyZeroNode.Saved.TryGetValue(proxy, out var w)) return;
+            HairShapeKeyZeroNode.Saved.Remove(proxy);
+            var smr = (SkinnedMeshRenderer)proxy;
+            if (smr.sharedMesh == null) return;
+            var n = Mathf.Min(w.Length, smr.sharedMesh.blendShapeCount);
+            for (var i = 0; i < n; i++) smr.SetBlendShapeWeight(i, w[i]);
+        }
+    }
+
     sealed class HairGlowPass : Pass<HairGlowPass>
     {
         public override string DisplayName => "髪の発光の設定";
@@ -114,7 +175,7 @@ namespace AtelierCloveria.CustomHairColorTool
             var copies = new Dictionary<Material, Material>();
             foreach (var s in settings)
             {
-                if (!HairGlow.ActiveUnder(s.transform, root.transform) || !HairGlow.IsUsable(s)) continue;
+                if (!HairGlow.ActiveUnder(s.transform, root.transform, ComputeContext.NullContext) || !HairGlow.IsUsable(s)) continue;
                 // 元が同じかで見る（先に動いた別のプラグインが複製に差し替えていても当てるため）
                 var blackOf = new Dictionary<ObjectReference, Texture2D>();
                 for (var i = 0; i < s.TargetMaterials.Length; i++)
@@ -150,10 +211,10 @@ namespace AtelierCloveria.CustomHairColorTool
     static class HairGlow
     {
         // TTT のオン・オフの判定に合わせる（アバター自身のオン・オフは見ない）
-        public static bool ActiveUnder(Transform t, Transform avatar)
+        public static bool ActiveUnder(Transform t, Transform avatar, ComputeContext context)
         {
             for (; t != null && t != avatar; t = t.parent)
-                if (!t.gameObject.activeSelf) return false;
+                if (!context.Observe(t.gameObject, g => g.activeSelf)) return false;
             return true;
         }
 
