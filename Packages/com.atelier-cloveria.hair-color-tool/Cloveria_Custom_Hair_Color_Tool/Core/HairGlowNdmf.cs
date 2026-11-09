@@ -54,9 +54,10 @@ namespace AtelierCloveria.CustomHairColorTool
         protected override void Execute(BuildContext context)
         {
             var state = context.GetState<HairShapeKeyState>();
+            var pairs = HairColorCore.ProductPinPairs(context.AvatarRootObject);
             foreach (var smr in HairColorCore.FindDecalTargetRenderers(context.AvatarRootObject, ComputeContext.NullContext))
             {
-                if (smr.sharedMesh == null || state.Weights.ContainsKey(smr)) continue;
+                if (smr.sharedMesh == null || state.Weights.ContainsKey(smr) || !HairColorCore.PinsFitZeroShape(smr, pairs)) continue;
                 var n = smr.sharedMesh.blendShapeCount;
                 var w = new float[n];
                 for (var i = 0; i < n; i++) { w[i] = smr.GetBlendShapeWeight(i); smr.SetBlendShapeWeight(i, 0f); }
@@ -87,6 +88,33 @@ namespace AtelierCloveria.CustomHairColorTool
                 if (manual.Contains(smr) || context.Observe(smr, x => x.sharedMaterials, (a, b) => a.SequenceEqual(b)).Any(m => m != null && materials.Contains(ObjectRegistry.GetReference(m))))
                     result.Add(smr);
             return result;
+        }
+
+        internal static List<PinPair> ProductPinPairs(GameObject avatar)
+        {
+            var root = GetProductRoot(FindProductUnder(avatar));
+            var pins = root != null ? root.GetComponentsInChildren<PinIslandSelector>(true).ToList() : new List<PinIslandSelector>();
+            return StrandPicker.PairStrandPins(pins, new List<PinIslandSelector>(), null);
+        }
+
+        internal static bool PinsFitZeroShape(SkinnedMeshRenderer smr, List<PinPair> pairs)
+        {
+            var n = smr.sharedMesh.blendShapeCount;
+            var w = new float[n];
+            for (var i = 0; i < n; i++) w[i] = smr.GetBlendShapeWeight(i);
+            if (pairs.Count == 0 || w.All(x => x == 0f)) return false;
+            var now = PinsOnStrands(smr, pairs);
+            for (var i = 0; i < n; i++) smr.SetBlendShapeWeight(i, 0f);
+            var zero = PinsOnStrands(smr, pairs);
+            for (var i = 0; i < n; i++) smr.SetBlendShapeWeight(i, w[i]);
+            return zero > now;
+        }
+
+        static int PinsOnStrands(SkinnedMeshRenderer smr, List<PinPair> pairs)
+        {
+            var islands = StrandPicker.BuildStrandIslands(new Renderer[] { smr }, null);
+            StrandPicker.MatchIslandsToPairs(islands, pairs);
+            return islands.SelectMany(i => i.Pairs).Distinct().Count();
         }
 
         internal static ImmutableList<RenderGroup> ShapeKeyPreviewGroups(ComputeContext context)
@@ -121,12 +149,26 @@ namespace AtelierCloveria.CustomHairColorTool
         public ImmutableList<RenderGroup> GetTargetGroups(ComputeContext context) => HairColorCore.ShapeKeyPreviewGroups(context);
 
         public Task<IRenderFilterNode> Instantiate(RenderGroup group, IEnumerable<(Renderer, Renderer)> proxyPairs, ComputeContext context)
-            => Task.FromResult<IRenderFilterNode>(new HairShapeKeyZeroNode());
+        {
+            var root = context.GetAvatarRoot(group.Renderers[0].gameObject);
+            var node = new HairShapeKeyZeroNode(root != null ? HairColorCore.ProductPinPairs(root) : new List<PinPair>());
+            foreach (var (original, _) in proxyPairs)
+            {
+                var smr = (SkinnedMeshRenderer)original;
+                if (smr.sharedMesh == null) continue;
+                context.Observe(smr, x => Enumerable.Range(0, x.sharedMesh.blendShapeCount).Select(x.GetBlendShapeWeight).ToArray(), (a, b) => a.SequenceEqual(b));
+            }
+            return Task.FromResult<IRenderFilterNode>(node);
+        }
     }
 
     sealed class HairShapeKeyZeroNode : IRenderFilterNode
     {
         internal static readonly Dictionary<Renderer, float[]> Saved = new Dictionary<Renderer, float[]>();
+        readonly List<PinPair> _pairs;
+        readonly Dictionary<Renderer, bool> _zero = new Dictionary<Renderer, bool>();
+
+        public HairShapeKeyZeroNode(List<PinPair> pairs) => _pairs = pairs;
 
         public RenderAspects WhatChanged => RenderAspects.Shapes;
 
@@ -134,6 +176,8 @@ namespace AtelierCloveria.CustomHairColorTool
         {
             var smr = (SkinnedMeshRenderer)proxy;
             if (smr.sharedMesh == null) return;
+            if (!_zero.TryGetValue(original, out var zero)) _zero[original] = zero = HairColorCore.PinsFitZeroShape(smr, _pairs);
+            if (!zero) return;
             var w = new float[smr.sharedMesh.blendShapeCount];
             for (var i = 0; i < w.Length; i++) { w[i] = smr.GetBlendShapeWeight(i); smr.SetBlendShapeWeight(i, 0f); }
             Saved[proxy] = w;
