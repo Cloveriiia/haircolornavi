@@ -13,6 +13,7 @@ using nadena.dev.ndmf;
 using nadena.dev.ndmf.preview;
 using net.rs64.TexTransTool.Decal;
 using net.rs64.TexTransTool.IslandSelector;
+using UnityEditor;
 using UnityEngine;
 
 [assembly: ExportsPlugin(typeof(AtelierCloveria.CustomHairColorTool.HairGlowPlugin))]
@@ -220,6 +221,7 @@ namespace AtelierCloveria.CustomHairColorTool
             foreach (var s in settings)
             {
                 if (!HairGlow.ActiveUnder(s.transform, root.transform, ComputeContext.NullContext) || !HairGlow.IsUsable(s)) continue;
+                HairColorCore.AddCutGlowDecals(root, s);
                 // 元が同じかで見る（先に動いた別のプラグインが複製に差し替えていても当てるため）
                 var blackOf = new Dictionary<ObjectReference, Texture2D>();
                 for (var i = 0; i < s.TargetMaterials.Length; i++)
@@ -392,17 +394,28 @@ namespace AtelierCloveria.CustomHairColorTool
             var rt = new RenderTexture(size, size, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { name = "HairGlowPreview", hideFlags = HideFlags.HideAndDontSave };
             rt.Create();
 
-            var layers = new List<(Color color, List<PinIslandSelector> pins)>();
+            List<PinIslandSelector> ActivePins(Transform selector)
+            {
+                var pins = new List<PinIslandSelector>();
+                StrandPicker.CollectStrandPins(selector, pins);
+                return pins.Where(p => context.ActiveInHierarchy(p.gameObject)).ToList();
+            }
+
+            var layers = new List<(Color color, List<PinIslandSelector> pins, Matrix4x4? clip)>();
             foreach (var d in CollectDecals(s.transform))
             {
                 if (!context.ActiveInHierarchy(d.gameObject)) continue;
                 var color = context.Observe(d, x => GetDecalColor(x));
                 var selector = context.Observe(d, x => x.IslandSelector);
                 if (selector == null) continue;
-                var pins = new List<PinIslandSelector>();
-                StrandPicker.CollectStrandPins(selector.transform, pins);
-                pins = pins.Where(p => context.ActiveInHierarchy(p.gameObject)).ToList();
-                layers.Add((color, pins));
+                layers.Add((color, ActivePins(selector.transform), null));
+            }
+            foreach (var (glow, cut) in CutGlowPairs(AvatarLookup.FindAvatarRoot(s.gameObject), s))
+            {
+                if (!context.ActiveInHierarchy(glow.gameObject)) continue;
+                var color = context.Observe(glow, x => GetDecalColor(x));
+                var selector = context.Observe(cut, x => x.IslandSelector);
+                layers.Add((color, ActivePins(selector.transform), cut.transform.worldToLocalMatrix));
             }
 
             var islands = StrandPicker.BuildStrandIslands(renderers, targets);
@@ -424,7 +437,7 @@ namespace AtelierCloveria.CustomHairColorTool
             GL.PushMatrix();
             GL.LoadOrtho();
             s_glowPaintMat.SetPass(0);
-            foreach (var (color, pins) in layers)
+            foreach (var (color, pins, clip) in layers)
             {
                 StrandPicker.MatchIslandsToPairs(islands, StrandPicker.PairStrandPins(pins, new List<PinIslandSelector>(), null));
                 GL.Begin(GL.TRIANGLES);
@@ -433,7 +446,8 @@ namespace AtelierCloveria.CustomHairColorTool
                 foreach (var isl in islands)
                 {
                     if (isl.Pairs.Count == 0) continue;
-                    foreach (var uv in isl.TriUv) GL.Vertex3(uv.x, uv.y, 0f);
+                    if (clip.HasValue) DrawInsideY01(isl, clip.Value, (uv, y) => GL.Vertex3(uv.x, uv.y, 0f));
+                    else foreach (var uv in isl.TriUv) GL.Vertex3(uv.x, uv.y, 0f);
                 }
                 GL.End();
             }
@@ -441,6 +455,65 @@ namespace AtelierCloveria.CustomHairColorTool
             RenderTexture.active = prev;
             GL.sRGBWrite = prevSrgb;
             return rt;
+        }
+
+        internal static List<(SingleGradationDecal glow, SingleGradationDecal cut)> CutGlowPairs(GameObject avatar, HairGlowSetting s)
+        {
+            var pairs = new List<(SingleGradationDecal glow, SingleGradationDecal cut)>();
+            var target = FindProductUnder(avatar);
+            if (target == null) return pairs;
+            foreach (var mt in target.ModeParts.Values)
+            {
+                if (mt.Glow == null || mt.Glow.Node != s.gameObject) continue;
+                for (var c = 0; c < mt.Glow.Decals.Length; c++)
+                    if (mt.Followers.TryGetValue(mt.Decals[c], out var cuts))
+                        foreach (var cut in cuts) pairs.Add((mt.Glow.Decals[c], cut));
+            }
+            return pairs;
+        }
+
+        internal static void AddCutGlowDecals(GameObject avatar, HairGlowSetting s)
+        {
+            foreach (var (glow, cut) in CutGlowPairs(avatar, s))
+            {
+                var go = new GameObject(cut.name + GlowSuffix);
+                go.transform.SetParent(cut.transform, false);
+                go.transform.SetParent(s.transform, true);
+                go.SetActive(glow.gameObject.activeSelf);
+                var d = go.AddComponent<SingleGradationDecal>();
+                EditorUtility.CopySerialized(glow, d);
+                d.IslandSelector = cut.IslandSelector;
+            }
+        }
+
+        static void DrawInsideY01(StrandIsland isl, Matrix4x4 toLocal, System.Action<Vector2, float> vertex)
+        {
+            for (var i = 0; i + 2 < isl.TriUv.Length; i += 3)
+            {
+                var poly = new List<(Vector2 uv, float y)>(5);
+                for (var k = 0; k < 3; k++) poly.Add((isl.TriUv[i + k], toLocal.MultiplyPoint3x4(isl.TriWorld[i + k]).y));
+                poly = ClipY(ClipY(poly, 0f, 1f), 1f, -1f);
+                for (var k = 1; k + 1 < poly.Count; k++)
+                {
+                    vertex(poly[0].uv, poly[0].y);
+                    vertex(poly[k].uv, poly[k].y);
+                    vertex(poly[k + 1].uv, poly[k + 1].y);
+                }
+            }
+        }
+
+        static List<(Vector2 uv, float y)> ClipY(List<(Vector2 uv, float y)> poly, float bound, float side)
+        {
+            var result = new List<(Vector2 uv, float y)>(poly.Count + 1);
+            for (var i = 0; i < poly.Count; i++)
+            {
+                var a = poly[i];
+                var b = poly[(i + 1) % poly.Count];
+                float da = side * (a.y - bound), db = side * (b.y - bound);
+                if (da >= 0f) result.Add(a);
+                if ((da >= 0f) != (db >= 0f)) result.Add((Vector2.Lerp(a.uv, b.uv, da / (da - db)), bound));
+            }
+            return result;
         }
     }
 }
